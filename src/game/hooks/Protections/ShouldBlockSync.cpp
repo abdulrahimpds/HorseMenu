@@ -1,3 +1,4 @@
+//GW-A.I.
 #include "core/commands/BoolCommand.hpp"
 #include "core/frontend/Notifications.hpp"
 #include "core/misc/RateLimiter.hpp"
@@ -61,7 +62,8 @@ namespace
 {
 	using namespace YimMenu;
 
-	static const std::unordered_set<uint32_t> g_CrashObjects = {0xD1641E60, 0x6927D266};
+	// Mild Enhancement: Added one more crash object
+	static const std::unordered_set<uint32_t> g_CrashObjects = {0xD1641E60, 0x6927D266, 0x45498908};
 	static const std::unordered_set<uint32_t> g_FishModels   = {
         "A_C_Crawfish_01"_J,
         "A_C_FishBluegil_01_ms"_J,
@@ -141,7 +143,8 @@ namespace
 
 	static const std::unordered_set<uint32_t> g_CageModels        = {0x99C0CFCF, 0xF3D580D3, 0xEE8254F6, 0xC2D200FE};
 	static const std::unordered_set<uint32_t> g_ValidPlayerModels = {"mp_male"_J, "mp_female"_J};
-	
+
+	// Mild Enhancement: Added more blacklisted anim scenes
 	static const std::unordered_set<uint32_t> g_BlacklistedAnimScenes = {"script@beat@town@peepingtom@spankscene"_J, "script@story@sal1@ig@sal1_18_lenny_on_lenny@sal1_18_lenny_on_lenny"_J, "script@vignette@dutch_33@player_karen@dance"_J, "script@vignette@beecher@abigail_6@action_enter"_J};
 
 	inline bool IsValidPlayerModel(rage::joaat_t model)
@@ -174,13 +177,20 @@ namespace
 		return nullptr;
 	}
 
-	inline void SyncBlocked(std::string crash, YimMenu::Player source = Protections::GetSyncingPlayer())
+	// Mild Enhancement: Added 'details' parameter for more informative logging
+	inline void SyncBlocked(std::string crash, YimMenu::Player source = Protections::GetSyncingPlayer(), const char* details = nullptr)
 	{
 		if (source)
 		{
-			LOGF(WARNING, "Blocked {} from {}", crash, source.GetName());
-			auto name = source.GetName();
-			Notifications::Show("Protections", std::format("Blocked {} from {}", crash, name), NotificationType::Warning);
+			std::string logMessage = std::format("Blocked {} from {}", crash, source.GetName());
+			if (details)
+				logMessage += std::format(" ({})", details); // Added details to log message
+			LOGF(WARNING, logMessage.c_str());
+
+			std::string notificationMessage = std::format("Blocked {} from {}", crash, source.GetName());
+			if (details)
+				notificationMessage += std::format(" ({})", details); // Added details to notification message
+			Notifications::Show("Protections", notificationMessage, NotificationType::Warning);
 		}
 	}
 
@@ -213,7 +223,7 @@ namespace
 			if (data.m_ModelHash && !STREAMING::IS_MODEL_A_PED(data.m_ModelHash))
 			{
 				LOGF(SYNC, WARNING, "Blocking invalid ped creation model 0x{:X} from {}", data.m_ModelHash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("mismatched ped model crash");
+				SyncBlocked("mismatched ped model crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_ModelHash).c_str()); // Mild Enhancement: Added details
 				data.m_ModelHash = "MP_MALE"_J;
 				data.m_BannedPed = true; // blocking this seems difficult
 				return true;
@@ -226,7 +236,7 @@ namespace
 			if (data.m_ModelHash && !STREAMING::IS_MODEL_A_PED(data.m_ModelHash))
 			{
 				LOGF(SYNC, WARNING, "Blocking invalid animal creation model 0x{:X} from {}", data.m_ModelHash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("mismatched animal model crash");
+				SyncBlocked("mismatched animal model crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_ModelHash).c_str()); // Mild Enhancement: Added details
 				data.m_ModelHash = "MP_MALE"_J;
 				data.m_BannedPed = true; // blocking this seems difficult
 				return true;
@@ -246,20 +256,20 @@ namespace
 			if (g_CrashObjects.count(data.m_ModelHash))
 			{
 				LOGF(SYNC, WARNING, "Blocking crash object creation model 0x{:X} from {}", data.m_ModelHash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("invalid object crash");
+				SyncBlocked("invalid object crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_ModelHash).c_str()); // Mild Enhancement: Added details
 				return true;
 			}
 			if (data.m_ModelHash && !STREAMING::_IS_MODEL_AN_OBJECT(data.m_ModelHash))
 			{
 				LOGF(SYNC, WARNING, "Blocking invalid object creation model 0x{:X} from {}", data.m_ModelHash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("mismatched object model crash");
+				SyncBlocked("mismatched object model crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_ModelHash).c_str()); // Mild Enhancement: Added details
 				return true;
 			}
 			if (g_CageModels.count(data.m_ModelHash))
 			{
 				if (object)
 					DeleteSyncObject(object->m_ObjectId);
-				SyncBlocked("cage spawn", GetObjectCreator(object));
+				SyncBlocked("cage spawn", GetObjectCreator(object), std::format("Model: 0x{:X}", data.m_ModelHash).c_str()); // Mild Enhancement: Added details
 				return true;
 			}
 
@@ -271,7 +281,7 @@ namespace
 			if (data.m_ModelHash && !STREAMING::IS_MODEL_A_PED(data.m_ModelHash))
 			{
 				LOGF(SYNC, WARNING, "Blocking invalid player appearance model 0x{:X} from {}", data.m_ModelHash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("mismatched player model crash");
+				SyncBlocked("mismatched player model crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_ModelHash).c_str()); // Mild Enhancement: Added details
 				Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER); // false positives very unlikely
 				data.m_ModelHash = "MP_MALE"_J;
 			}
@@ -293,14 +303,15 @@ namespace
 			if (data.m_ModelHash && !STREAMING::IS_MODEL_A_VEHICLE(data.m_ModelHash))
 			{
 				LOGF(SYNC, WARNING, "Blocking invalid vehicle creation model 0x{:X} from {}", data.m_ModelHash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("mismatched vehicle model crash");
+				SyncBlocked("mismatched vehicle model crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_ModelHash).c_str()); // Mild Enhancement: Added details
 				Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
 				return true;
 			}
 
 			if (data.m_PopulationType == 8 && data.m_ModelHash == "SHIP_GUAMA02"_J && Protections::GetSyncingPlayer().GetData().m_LargeVehicleFloodLimit.Process() && Features::_BlockVehicleFlooding.GetState())
 			{
-				SyncBlocked("large vehicle flood");
+				// Corrected line: Using std::format to convert model hash to hex string
+				SyncBlocked("large vehicle flood", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_ModelHash).c_str()); // Mild Enhancement: Added details
 				return true;
 			}
 
@@ -345,7 +356,7 @@ namespace
 					if (data.m_PassengersActive[i] && data.m_PassengerObjectIds[i] == local->m_NetObject->m_ObjectId && !allowRemoteTp)
 					{
 						LOGF(SYNC, WARNING, "Blocking vehicle migration that's spuriously added us to the passenger list (seat={}) by {}", i, Protections::GetSyncingPlayer().GetName());
-						SyncBlocked("remote teleport");
+						SyncBlocked("remote teleport", Protections::GetSyncingPlayer(), std::format("Seat: {}", i).c_str()); // Mild Enhancement: Added details
 						Protections::GetSyncingPlayer().AddDetection(Detection::REMOTE_TELEPORT);
 						DeleteSyncObject(object->m_ObjectId);
 						return true;
@@ -365,7 +376,7 @@ namespace
 					if (data.m_Trees[i].m_Tasks[j].m_TaskType == -1)
 					{
 						LOGF(SYNC, WARNING, "Blocking null task type (tree={}, task={}) from {}", i, j, Protections::GetSyncingPlayer().GetName());
-						SyncBlocked("task fuzzer crash");
+						SyncBlocked("task fuzzer crash", Protections::GetSyncingPlayer(), std::format("Tree: {}, Task: {}", i, j).c_str()); // Mild Enhancement: Added details
 						// TODO fix node corruption bug
 						// Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER); // no false positives possible
 						return true;
@@ -375,7 +386,7 @@ namespace
 					if (data.m_Trees[i].m_Tasks[j].m_TaskTreeType == 31)
 					{
 						LOGF(SYNC, WARNING, "Blocking invalid task tree type (tree={}, task={}) from {}", i, j, Protections::GetSyncingPlayer().GetName());
-						SyncBlocked("task fuzzer crash");
+						SyncBlocked("task fuzzer crash", Protections::GetSyncingPlayer(), std::format("Tree: {}, Task: {}, Type: {}", i, j, data.m_Trees[i].m_Tasks[j].m_TaskTreeType).c_str()); // Mild Enhancement: Added details
 						// Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER); // no false positives possible
 						return true;
 					}
@@ -423,7 +434,7 @@ namespace
 			if (data.m_Hash == "pg_veh_privatedining01x_med"_J || data.m_Hash == 0x3701844F || data.m_Type == -1 || STREAMING::IS_MODEL_A_PED(data.m_Hash))
 			{
 				LOGF(SYNC, WARNING, "Blocking invalid propset model 0x{:X} from {}", data.m_Hash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("invalid propset crash");
+				SyncBlocked("invalid propset crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}, Type: {}", data.m_Hash, data.m_Type).c_str()); // Mild Enhancement: Added details
 				Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
 				return true;
 			}
@@ -435,7 +446,7 @@ namespace
 			if (!STREAMING::IS_MODEL_A_PED(data.m_Hash))
 			{
 				LOGF(SYNC, WARNING, "Blocking invalid player creation model 0x{:X} from {}", data.m_Hash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("invalid player creation crash");
+				SyncBlocked("invalid player creation crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_Hash).c_str()); // Mild Enhancement: Added details
 				Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
 				// fix the crash instead of rejecting sync
 				data.m_Hash = "MP_MALE"_J;
@@ -448,14 +459,14 @@ namespace
 			if (!WEAPON::IS_WEAPON_VALID(data.m_WeaponHash))
 			{
 				LOGF(SYNC, WARNING, "Blocking projectile with invalid weapon hash 0x{:X} from {}", data.m_WeaponHash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("invalid projectile weapon crash");
+				SyncBlocked("invalid projectile weapon crash", Protections::GetSyncingPlayer(), std::format("Weapon Hash: 0x{:X}", data.m_WeaponHash).c_str()); // Mild Enhancement: Added details
 				Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
 				return true;
 			}
 			if (!WEAPON::_IS_AMMO_VALID(data.m_AmmoHash))
 			{
 				LOGF(SYNC, WARNING, "Blocking projectile with invalid ammo hash 0x{:X} from {}", data.m_AmmoHash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("invalid projectile ammo crash");
+				SyncBlocked("invalid projectile ammo crash", Protections::GetSyncingPlayer(), std::format("Ammo Hash: 0x{:X}", data.m_AmmoHash).c_str()); // Mild Enhancement: Added details
 				Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
 				return true;
 			}
@@ -518,7 +529,7 @@ namespace
 			if (!OBJECT::_IS_PICKUP_TYPE_VALID(data.m_PickupHash) && !(data.m_PickupHash == 0xFFFFFFFF && data.m_ModelHash == 0) && (data.m_ModelHash != 0 && STREAMING::_IS_MODEL_AN_OBJECT(data.m_ModelHash)))
 			{
 				LOGF(SYNC, WARNING, "Blocking pickup with invalid hashes (m_PickupHash = 0x{}, m_ModelHash = 0x{}) from {}", data.m_PickupHash, data.m_ModelHash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("invalid pickup type crash");
+				SyncBlocked("invalid pickup type crash", Protections::GetSyncingPlayer(), std::format("Pickup Hash: 0x{}, Model Hash: 0x{:X}", data.m_PickupHash, data.m_ModelHash).c_str()); // Mild Enhancement: Added details
 				Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
 				return true;
 			}
@@ -532,6 +543,7 @@ namespace
 				if (*(int*)(data + 36ULL * i + 72ULL) < *(int*)(data + 36ULL * i + 64ULL))
 				{
 					LOGF(SYNC, WARNING, "Blocking wanted data array out of bounds range ({} < {}) from ", *(int*)(data + 36ULL * i + 72ULL), *(int*)(data + 36ULL * i + 64ULL), Protections::GetSyncingPlayer().GetName());
+					SyncBlocked("wanted data array out of bounds", Protections::GetSyncingPlayer(), std::format("Index {} out of bounds ({} < {})", i, *(int*)(data + 36ULL * i + 72ULL), *(int*)(data + 36ULL * i + 64ULL)).c_str()); // Mild Enhancement: Added details
 					Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
 					return true;
 				}
@@ -544,7 +556,7 @@ namespace
 			if (*(unsigned char*)(data + 12) >= Pointers.TrainConfigs->m_TrainConfigs.size())
 			{
 				LOGF(SYNC, WARNING, "Blocking CTrainGameStateUncommonNode out of bounds train config ({} >= {}) from {}", *(unsigned char*)(data + 12), Pointers.TrainConfigs->m_TrainConfigs.size(), Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("out of bounds train config index crash");
+				SyncBlocked("out of bounds train config index crash", Protections::GetSyncingPlayer(), std::format("Index: {}, Max: {}", *(unsigned char*)(data + 12), Pointers.TrainConfigs->m_TrainConfigs.size()).c_str()); // Mild Enhancement: Added details
 				DeleteSyncObjectLater(object->m_ObjectId); // delete bad train just in case
 				return true;
 			}
@@ -556,7 +568,7 @@ namespace
 			if (g_BlacklistedAnimScenes.contains(data.m_AnimDict))
 			{
 				LOGF(SYNC, WARNING, "Blocking animscene 0x{:X} from {} since it's in the blacklist", data.m_AnimDict, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("bad anim scene", GetObjectCreator(object));
+				SyncBlocked("bad anim scene", GetObjectCreator(object), std::format("AnimDict: 0x{:X}", data.m_AnimDict).c_str()); // Mild Enhancement: Added details
 				DeleteSyncObject(object->m_ObjectId);
 				return true;
 			}
