@@ -145,7 +145,12 @@ namespace
 	static const std::unordered_set<uint32_t> g_ValidPlayerModels = {"mp_male"_J, "mp_female"_J};
 
 	// Mild Enhancement: Added more blacklisted anim scenes
-	static const std::unordered_set<uint32_t> g_BlacklistedAnimScenes = {"script@beat@town@peepingtom@spankscene"_J, "script@story@sal1@ig@sal1_18_lenny_on_lenny@sal1_18_lenny_on_lenny"_J, "script@vignette@dutch_33@player_karen@dance"_J, "script@vignette@beecher@abigail_6@action_enter"_J};
+	static const std::unordered_set<uint32_t> g_BlacklistedAnimScenes = {
+	    "script@beat@town@peepingtom@spankscene"_J,
+	    "script@story@sal1@ig@sal1_18_lenny_on_lenny@sal1_18_lenny_on_lenny"_J,
+	    "script@vignette@dutch_33@player_karen@dance"_J,
+	    "script@vignette@beecher@abigail_6@action_enter"_J
+	};
 
 	inline bool IsValidPlayerModel(rage::joaat_t model)
 	{
@@ -156,7 +161,6 @@ namespace
 	{
 		if (!player)
 			return;
-
 		if (!IsValidPlayerModel(model))
 			player.AddDetection(Detection::INVALID_PLAYER_MODEL);
 	}
@@ -165,7 +169,6 @@ namespace
 	{
 		if (!object)
 			return nullptr;
-
 		for (auto& [idx, player] : Players::GetPlayers())
 		{
 			if ((*Pointers.ScSession)->m_SessionMultiplayer->GetPlayerByIndex(idx)->m_SessionPeer->m_Identifier.m_AccountId == object->m_Guid.GetAccountId())
@@ -173,23 +176,24 @@ namespace
 				return player;
 			}
 		}
-
 		return nullptr;
 	}
 
-	// Mild Enhancement: Added 'details' parameter for more informative logging
+	// Mild Enhancement: Added 'details' parameter for more informative logging.
+	// We now check the C-string returned by GetName() for non-emptiness.
 	inline void SyncBlocked(std::string crash, YimMenu::Player source = Protections::GetSyncingPlayer(), const char* details = nullptr)
 	{
-		if (source)
+		const char* name = source.GetName();
+		if (name != nullptr && name[0] != '\0')
 		{
-			std::string logMessage = std::format("Blocked {} from {}", crash, source.GetName());
+			std::string logMessage = std::format("Blocked {} from {}", crash, name);
 			if (details)
-				logMessage += std::format(" ({})", details); // Added details to log message
+				logMessage += std::format(" ({})", details);
 			LOGF(WARNING, logMessage.c_str());
 
-			std::string notificationMessage = std::format("Blocked {} from {}", crash, source.GetName());
+			std::string notificationMessage = std::format("Blocked {} from {}", crash, name);
 			if (details)
-				notificationMessage += std::format(" ({})", details); // Added details to notification message
+				notificationMessage += std::format(" ({})", details);
 			Notifications::Show("Protections", notificationMessage, NotificationType::Warning);
 		}
 	}
@@ -198,7 +202,6 @@ namespace
 	{
 		if (object == -1)
 			return;
-
 		Network::ForceRemoveNetworkEntity(object, -1, false);
 	}
 
@@ -207,43 +210,46 @@ namespace
 		FiberPool::Push([object] {
 			if (object == -1)
 				return;
-
 			Network::ForceRemoveNetworkEntity(object, -1, true);
 		});
 	}
 
-	// note that object can be nullptr here if it hasn't been created yet (i.e. in the creation queue)
+	// note: object can be nullptr if not yet created.
 	bool ShouldBlockNode(CProjectBaseSyncDataNode* node, SyncNodeId id, NetObjType type, rage::netObject* object)
-	{
-		switch (id)
-		{
-		case "CPedCreationNode"_J:
-		{
-			auto& data = node->GetData<CPedCreationData>();
-			if (data.m_ModelHash && !STREAMING::IS_MODEL_A_PED(data.m_ModelHash))
-			{
-				LOGF(SYNC, WARNING, "Blocking invalid ped creation model 0x{:X} from {}", data.m_ModelHash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("mismatched ped model crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_ModelHash).c_str()); // Mild Enhancement: Added details
-				data.m_ModelHash = "MP_MALE"_J;
-				data.m_BannedPed = true; // blocking this seems difficult
-				return true;
-			}
-			break;
-		}
+    {
+        if (object && IsBadReadPtr(object, sizeof(*object)))
+        {
+            LOG(WARNING) << "[Protections] Invalid netObject pointer detected, treating as null";
+            object = nullptr;
+        }
+        switch (id)
+        {
+        case "CPedCreationNode"_J:
+        {
+            auto& data = node->GetData<CPedCreationData>();
+            if (data.m_ModelHash && !STREAMING::IS_MODEL_A_PED(data.m_ModelHash))
+            {
+                LOGF(SYNC, WARNING, "Blocking invalid ped creation model 0x{:X} from {}", data.m_ModelHash, Protections::GetSyncingPlayer().GetName());
+                SyncBlocked("mismatched ped model crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_ModelHash).c_str());
+                data.m_ModelHash = "MP_MALE"_J;
+                data.m_BannedPed = true;
+                return true;
+            }
+            break;
+        }
 		case "CAnimalCreationNode"_J:
 		{
 			auto& data = node->GetData<CAnimalCreationData>();
 			if (data.m_ModelHash && !STREAMING::IS_MODEL_A_PED(data.m_ModelHash))
 			{
 				LOGF(SYNC, WARNING, "Blocking invalid animal creation model 0x{:X} from {}", data.m_ModelHash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("mismatched animal model crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_ModelHash).c_str()); // Mild Enhancement: Added details
+				SyncBlocked("mismatched animal model crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_ModelHash).c_str());
 				data.m_ModelHash = "MP_MALE"_J;
-				data.m_BannedPed = true; // blocking this seems difficult
+				data.m_BannedPed = true;
 				return true;
 			}
 			if (data.m_PopulationType == 10 && Features::_BlockGhostPeds.GetState())
 			{
-				// block ghost peds
 				if (object)
 					DeleteSyncObject(object->m_ObjectId);
 				return true;
@@ -256,23 +262,22 @@ namespace
 			if (g_CrashObjects.count(data.m_ModelHash))
 			{
 				LOGF(SYNC, WARNING, "Blocking crash object creation model 0x{:X} from {}", data.m_ModelHash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("invalid object crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_ModelHash).c_str()); // Mild Enhancement: Added details
+				SyncBlocked("invalid object crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_ModelHash).c_str());
 				return true;
 			}
 			if (data.m_ModelHash && !STREAMING::_IS_MODEL_AN_OBJECT(data.m_ModelHash))
 			{
 				LOGF(SYNC, WARNING, "Blocking invalid object creation model 0x{:X} from {}", data.m_ModelHash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("mismatched object model crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_ModelHash).c_str()); // Mild Enhancement: Added details
+				SyncBlocked("mismatched object model crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_ModelHash).c_str());
 				return true;
 			}
 			if (g_CageModels.count(data.m_ModelHash))
 			{
 				if (object)
 					DeleteSyncObject(object->m_ObjectId);
-				SyncBlocked("cage spawn", GetObjectCreator(object), std::format("Model: 0x{:X}", data.m_ModelHash).c_str()); // Mild Enhancement: Added details
+				SyncBlocked("cage spawn", GetObjectCreator(object), std::format("Model: 0x{:X}", data.m_ModelHash).c_str());
 				return true;
 			}
-
 			break;
 		}
 		case "CPlayerAppearanceNode"_J:
@@ -281,20 +286,16 @@ namespace
 			if (data.m_ModelHash && !STREAMING::IS_MODEL_A_PED(data.m_ModelHash))
 			{
 				LOGF(SYNC, WARNING, "Blocking invalid player appearance model 0x{:X} from {}", data.m_ModelHash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("mismatched player model crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_ModelHash).c_str()); // Mild Enhancement: Added details
-				Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER); // false positives very unlikely
+				SyncBlocked("mismatched player model crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_ModelHash).c_str());
+				Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
 				data.m_ModelHash = "MP_MALE"_J;
 			}
-
 			if (data.m_ModelHash && (g_FishModels.count(data.m_ModelHash) || g_BirdModels.count(data.m_ModelHash)))
 			{
-				// TODO
 				LOGF(SYNC, WARNING, "Prevented {} from using animal model 0x{:X} to prevent potential task crashes", Protections::GetSyncingPlayer().GetName(), data.m_ModelHash);
-				// data.m_ModelHash = "MP_MALE"_J;
+				// Optionally change model: data.m_ModelHash = "MP_MALE"_J;
 			}
-
 			CheckPlayerModel(Protections::GetSyncingPlayer().GetHandle(), data.m_ModelHash);
-
 			break;
 		}
 		case "CVehicleCreationNode"_J:
@@ -303,48 +304,51 @@ namespace
 			if (data.m_ModelHash && !STREAMING::IS_MODEL_A_VEHICLE(data.m_ModelHash))
 			{
 				LOGF(SYNC, WARNING, "Blocking invalid vehicle creation model 0x{:X} from {}", data.m_ModelHash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("mismatched vehicle model crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_ModelHash).c_str()); // Mild Enhancement: Added details
+				SyncBlocked("mismatched vehicle model crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_ModelHash).c_str());
 				Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
 				return true;
 			}
-
-			if (data.m_PopulationType == 8 && data.m_ModelHash == "SHIP_GUAMA02"_J && Protections::GetSyncingPlayer().GetData().m_LargeVehicleFloodLimit.Process() && Features::_BlockVehicleFlooding.GetState())
+			if (data.m_PopulationType == 8 && data.m_ModelHash == "SHIP_GUAMA02"_J &&
+			    Protections::GetSyncingPlayer().GetData().m_LargeVehicleFloodLimit.Process() &&
+			    Features::_BlockVehicleFlooding.GetState())
 			{
-				// Corrected line: Using std::format to convert model hash to hex string
-				SyncBlocked("large vehicle flood", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_ModelHash).c_str()); // Mild Enhancement: Added details
+				SyncBlocked("large vehicle flood", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_ModelHash).c_str());
 				return true;
 			}
-
-			if (data.m_PopulationType == 8 && Protections::GetSyncingPlayer().GetData().m_VehicleFloodLimit.Process() && Features::_BlockVehicleFlooding.GetState())
+			if (data.m_PopulationType == 8 &&
+			    Protections::GetSyncingPlayer().GetData().m_VehicleFloodLimit.Process() &&
+			    Features::_BlockVehicleFlooding.GetState())
 			{
 				SyncBlocked("vehicle flood");
 				return true;
 			}
-
 			break;
 		}
 		case "CPhysicalAttachNode"_J:
-		{
-			auto& data = node->GetData<CPhysicalAttachData>();
-			if (auto local = Pointers.GetLocalPed(); local && local->m_NetObject)
-			{
-				if (data.m_IsAttached && data.m_AttachObjectId == local->m_NetObject->m_ObjectId && Features::_BlockAttachments.GetState())
-				{
-					SyncBlocked("attachment", GetObjectCreator(object));
-					Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_ATTACH);
-					DeleteSyncObject(object->m_ObjectId);
-					return true;
-				}
-
-				if (data.m_IsAttached && object && object->m_ObjectType == (uint16_t)NetObjType::Trailer)
-				{
-					SyncBlocked("physical trailer attachment crash");
-					Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
-					return true;
-				}
-			}
-			break;
-		}
+        {
+            auto& data = node->GetData<CPhysicalAttachData>();
+            if (auto local = Pointers.GetLocalPed(); local && local->m_NetObject)
+            {
+                bool isAttachToMe = (data.m_IsAttached &&
+                                     data.m_AttachObjectId == local->m_NetObject->m_ObjectId);
+                if (isAttachToMe && Features::_BlockAttachments.GetState())
+                {
+                    YimMenu::Player offender = object ? GetObjectCreator(object) : Protections::GetSyncingPlayer();
+                    SyncBlocked("attachment", offender);
+                    Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_ATTACH);
+                    if (object)
+                        DeleteSyncObject(object->m_ObjectId);
+                    return true;
+                }
+                if (data.m_IsAttached && object && object->m_ObjectType == (uint16_t)NetObjType::Trailer)
+                {
+                    SyncBlocked("physical trailer attachment crash", Protections::GetSyncingPlayer());
+                    Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
+                    return true;
+                }
+            }
+            break;
+        }
 		case "CVehicleProximityMigrationNode"_J:
 		{
 			auto& data = node->GetData<CVehicleProximityMigrationData>();
@@ -353,10 +357,12 @@ namespace
 				bool allowRemoteTp = Features::_AllowRemoteTPs.GetState();
 				for (int i = 0; i < 17; i++)
 				{
-					if (data.m_PassengersActive[i] && data.m_PassengerObjectIds[i] == local->m_NetObject->m_ObjectId && !allowRemoteTp)
+					if (data.m_PassengersActive[i] &&
+					    data.m_PassengerObjectIds[i] == local->m_NetObject->m_ObjectId &&
+					    !allowRemoteTp)
 					{
 						LOGF(SYNC, WARNING, "Blocking vehicle migration that's spuriously added us to the passenger list (seat={}) by {}", i, Protections::GetSyncingPlayer().GetName());
-						SyncBlocked("remote teleport", Protections::GetSyncingPlayer(), std::format("Seat: {}", i).c_str()); // Mild Enhancement: Added details
+						SyncBlocked("remote teleport", Protections::GetSyncingPlayer(), std::format("Seat: {}", i).c_str());
 						Protections::GetSyncingPlayer().AddDetection(Detection::REMOTE_TELEPORT);
 						DeleteSyncObject(object->m_ObjectId);
 						return true;
@@ -368,26 +374,37 @@ namespace
 		case "CPedTaskTreeNode"_J:
 		{
 			auto& data = node->GetData<CPedTaskTreeData>();
-
-			for (int i = 0; i < data.GetNumTaskTrees(); i++)
+			int numTrees = data.GetNumTaskTrees();
+			const int MAX_TREES = 8;
+			const int MAX_TASKS_PER_TREE = 32;
+			if (numTrees > MAX_TREES)
 			{
-				for (int j = 0; j < data.m_Trees[i].m_NumTasks; j++)
+				LOG(WARNING) << "[Protections] Unexpected task tree count (" << numTrees
+				             << ") from " << Protections::GetSyncingPlayer().GetName()
+				             << " – clipping to " << MAX_TREES;
+				numTrees = MAX_TREES;
+			}
+			for (int i = 0; i < numTrees; ++i)
+			{
+				int numTasks = data.m_Trees[i].m_NumTasks;
+				if (numTasks > MAX_TASKS_PER_TREE)
+				{
+					LOG(WARNING) << "[Protections] Task count too high (" << numTasks
+					             << ") in tree " << i << " – clipping to " << MAX_TASKS_PER_TREE;
+					numTasks = MAX_TASKS_PER_TREE;
+				}
+				for (int j = 0; j < numTasks; ++j)
 				{
 					if (data.m_Trees[i].m_Tasks[j].m_TaskType == -1)
 					{
 						LOGF(SYNC, WARNING, "Blocking null task type (tree={}, task={}) from {}", i, j, Protections::GetSyncingPlayer().GetName());
-						SyncBlocked("task fuzzer crash", Protections::GetSyncingPlayer(), std::format("Tree: {}, Task: {}", i, j).c_str()); // Mild Enhancement: Added details
-						// TODO fix node corruption bug
-						// Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER); // no false positives possible
+						SyncBlocked("task fuzzer crash", Protections::GetSyncingPlayer(), std::format("Tree: {}, Task: {}", i, j).c_str());
 						return true;
 					}
-
-					// TODO: better heuristics
 					if (data.m_Trees[i].m_Tasks[j].m_TaskTreeType == 31)
 					{
 						LOGF(SYNC, WARNING, "Blocking invalid task tree type (tree={}, task={}) from {}", i, j, Protections::GetSyncingPlayer().GetName());
-						SyncBlocked("task fuzzer crash", Protections::GetSyncingPlayer(), std::format("Tree: {}, Task: {}, Type: {}", i, j, data.m_Trees[i].m_Tasks[j].m_TaskTreeType).c_str()); // Mild Enhancement: Added details
-						// Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER); // no false positives possible
+						SyncBlocked("task fuzzer crash", Protections::GetSyncingPlayer(), std::format("Tree: {}, Task: {}, Type: {}", i, j, data.m_Trees[i].m_Tasks[j].m_TaskTreeType).c_str());
 						return true;
 					}
 				}
@@ -395,46 +412,45 @@ namespace
 			break;
 		}
 		case "CPedAttachNode"_J:
-		{
-			auto& data = node->GetData<CPedAttachData>();
-			if (auto local = Pointers.GetLocalPed(); local && local->m_NetObject)
-			{
-				if (data.m_IsAttached && data.m_AttachObjectId == local->m_NetObject->m_ObjectId && Features::_BlockAttachments.GetState())
-				{
-					SyncBlocked("ped attachment");
-					Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_ATTACH);
-					if (object->m_ObjectType != (int)NetObjType::Player)
-					{
-						LOGF(SYNC, WARNING, "Deleting ped object {} attached to our ped", object->m_ObjectId);
-						DeleteSyncObject(object->m_ObjectId);
-						return true;
-					}
-					else
-					{
-						LOGF(SYNC, WARNING, "Player {} has attached themselves to us. Pretending to delete our ped to force detach ourselves on their end", Protections::GetSyncingPlayer().GetName());
-						// delete us on their end
-						Network::ForceRemoveNetworkEntity(Self::GetPed().GetNetworkObjectId(), -1, false, Protections::GetSyncingPlayer());
-						data.m_IsAttached = false;
-					}
-				}
-
-				// TODO: the check looks off
-				if (data.m_IsAttached && object && object->m_ObjectType == (uint16_t)NetObjType::Trailer)
-				{
-					SyncBlocked("ped trailer attachment crash");
-					Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
-					return true;
-				}
-			}
-			break;
-		}
+        {
+            auto& data = node->GetData<CPedAttachData>();
+            if (auto local = Pointers.GetLocalPed(); local && local->m_NetObject)
+            {
+                bool isAttachToMe = (data.m_IsAttached &&
+                                     data.m_AttachObjectId == local->m_NetObject->m_ObjectId);
+                if (isAttachToMe && Features::_BlockAttachments.GetState())
+                {
+                    SyncBlocked("ped attachment", Protections::GetSyncingPlayer());
+                    Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_ATTACH);
+                    if (object && object->m_ObjectType != (uint16_t)NetObjType::Player)
+                    {
+                        LOGF(SYNC, WARNING, "Deleting ped object {} attached to our ped", object->m_ObjectId);
+                        DeleteSyncObject(object->m_ObjectId);
+                        return true;
+                    }
+                    else if (object && object->m_ObjectType == (uint16_t)NetObjType::Player)
+                    {
+                        LOGF(SYNC, WARNING, "Player {} attached themselves to us – forcing detach", Protections::GetSyncingPlayer().GetName());
+                        Network::ForceRemoveNetworkEntity(Self::GetPed().GetNetworkObjectId(), -1, false, Protections::GetSyncingPlayer());
+                        data.m_IsAttached = false;
+                    }
+                }
+                if (data.m_IsAttached && object && object->m_ObjectType == (uint16_t)NetObjType::Trailer)
+                {
+                    SyncBlocked("ped trailer attachment crash", Protections::GetSyncingPlayer());
+                    Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
+                    return true;
+                }
+            }
+            break;
+        }
 		case "CPropSetCreationNode"_J:
 		{
 			auto& data = node->GetData<CPropSetCreationData>();
 			if (data.m_Hash == "pg_veh_privatedining01x_med"_J || data.m_Hash == 0x3701844F || data.m_Type == -1 || STREAMING::IS_MODEL_A_PED(data.m_Hash))
 			{
 				LOGF(SYNC, WARNING, "Blocking invalid propset model 0x{:X} from {}", data.m_Hash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("invalid propset crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}, Type: {}", data.m_Hash, data.m_Type).c_str()); // Mild Enhancement: Added details
+				SyncBlocked("invalid propset crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}, Type: {}", data.m_Hash, data.m_Type).c_str());
 				Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
 				return true;
 			}
@@ -446,9 +462,8 @@ namespace
 			if (!STREAMING::IS_MODEL_A_PED(data.m_Hash))
 			{
 				LOGF(SYNC, WARNING, "Blocking invalid player creation model 0x{:X} from {}", data.m_Hash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("invalid player creation crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_Hash).c_str()); // Mild Enhancement: Added details
+				SyncBlocked("invalid player creation crash", Protections::GetSyncingPlayer(), std::format("Model: 0x{:X}", data.m_Hash).c_str());
 				Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
-				// fix the crash instead of rejecting sync
 				data.m_Hash = "MP_MALE"_J;
 			}
 			break;
@@ -459,14 +474,14 @@ namespace
 			if (!WEAPON::IS_WEAPON_VALID(data.m_WeaponHash))
 			{
 				LOGF(SYNC, WARNING, "Blocking projectile with invalid weapon hash 0x{:X} from {}", data.m_WeaponHash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("invalid projectile weapon crash", Protections::GetSyncingPlayer(), std::format("Weapon Hash: 0x{:X}", data.m_WeaponHash).c_str()); // Mild Enhancement: Added details
+				SyncBlocked("invalid projectile weapon crash", Protections::GetSyncingPlayer(), std::format("Weapon Hash: 0x{:X}", data.m_WeaponHash).c_str());
 				Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
 				return true;
 			}
 			if (!WEAPON::_IS_AMMO_VALID(data.m_AmmoHash))
 			{
 				LOGF(SYNC, WARNING, "Blocking projectile with invalid ammo hash 0x{:X} from {}", data.m_AmmoHash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("invalid projectile ammo crash", Protections::GetSyncingPlayer(), std::format("Ammo Hash: 0x{:X}", data.m_AmmoHash).c_str()); // Mild Enhancement: Added details
+				SyncBlocked("invalid projectile ammo crash", Protections::GetSyncingPlayer(), std::format("Ammo Hash: 0x{:X}", data.m_AmmoHash).c_str());
 				Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
 				return true;
 			}
@@ -480,24 +495,22 @@ namespace
 				auto object = Pointers.GetNetObjectById(data.m_SpectatorId);
 				if (object && ((NetObjType)object->m_ObjectType) == NetObjType::Player)
 				{
-					if (Protections::GetSyncingPlayer())
+					if (Protections::GetSyncingPlayer().GetName() != nullptr && Protections::GetSyncingPlayer().GetName()[0] != '\0')
 					{
 						auto old_spectator = Protections::GetSyncingPlayer().GetData().m_SpectatingPlayer;
 						Protections::GetSyncingPlayer().GetData().m_SpectatingPlayer = object->m_OwnerId;
-
 						if (old_spectator != Protections::GetSyncingPlayer().GetData().m_SpectatingPlayer)
 						{
-							bool spectating_local = Protections::GetSyncingPlayer().GetData().m_SpectatingPlayer == Self::GetPlayer();
+							bool spectating_local = (Protections::GetSyncingPlayer().GetData().m_SpectatingPlayer == Self::GetPlayer());
 							if (spectating_local)
 							{
 								Notifications::Show("Protections",
 								    std::format("{} is spectating you", Protections::GetSyncingPlayer().GetName()),
 								    NotificationType::Warning);
 							}
-
-							if (Features::_BlockSpectate.GetState()
-							    && (spectating_local || Features::_BlockSpectateSession.GetState())
-							    && Protections::GetSyncingPlayer().GetData().m_SpectatingPlayer != Protections::GetSyncingPlayer())
+							if (Features::_BlockSpectate.GetState() &&
+							    (spectating_local || Features::_BlockSpectateSession.GetState()) &&
+							    Protections::GetSyncingPlayer().GetData().m_SpectatingPlayer != Protections::GetSyncingPlayer())
 							{
 								Network::ForceRemoveNetworkEntity(
 								    Protections::GetSyncingPlayer().GetData().m_SpectatingPlayer.GetPed().GetNetworkObjectId(),
@@ -506,19 +519,18 @@ namespace
 								    Protections::GetSyncingPlayer());
 							}
 						}
-
 						Protections::GetSyncingPlayer().AddDetection(Detection::USED_SPECTATE);
 					}
 				}
 				else
 				{
-					if (Protections::GetSyncingPlayer())
+					if (Protections::GetSyncingPlayer().GetName() != nullptr && Protections::GetSyncingPlayer().GetName()[0] != '\0')
 						Protections::GetSyncingPlayer().GetData().m_SpectatingPlayer = nullptr;
 				}
 			}
 			else
 			{
-				if (Protections::GetSyncingPlayer())
+				if (Protections::GetSyncingPlayer().GetName() != nullptr && Protections::GetSyncingPlayer().GetName()[0] != '\0')
 					Protections::GetSyncingPlayer().GetData().m_SpectatingPlayer = nullptr;
 			}
 			break;
@@ -526,10 +538,14 @@ namespace
 		case "CPickupCreationNode"_J:
 		{
 			auto& data = node->GetData<CPickupCreationData>();
-			if (!OBJECT::_IS_PICKUP_TYPE_VALID(data.m_PickupHash) && !(data.m_PickupHash == 0xFFFFFFFF && data.m_ModelHash == 0) && (data.m_ModelHash != 0 && STREAMING::_IS_MODEL_AN_OBJECT(data.m_ModelHash)))
+			if (!OBJECT::_IS_PICKUP_TYPE_VALID(data.m_PickupHash) &&
+			    !(data.m_PickupHash == 0xFFFFFFFF && data.m_ModelHash == 0) &&
+			    (data.m_ModelHash != 0 && STREAMING::_IS_MODEL_AN_OBJECT(data.m_ModelHash)))
 			{
-				LOGF(SYNC, WARNING, "Blocking pickup with invalid hashes (m_PickupHash = 0x{}, m_ModelHash = 0x{}) from {}", data.m_PickupHash, data.m_ModelHash, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("invalid pickup type crash", Protections::GetSyncingPlayer(), std::format("Pickup Hash: 0x{}, Model Hash: 0x{:X}", data.m_PickupHash, data.m_ModelHash).c_str()); // Mild Enhancement: Added details
+				LOGF(SYNC, WARNING, "Blocking pickup with invalid hashes (m_PickupHash = 0x{}, m_ModelHash = 0x{}) from {}",
+				     data.m_PickupHash, data.m_ModelHash, Protections::GetSyncingPlayer().GetName());
+				SyncBlocked("invalid pickup type crash", Protections::GetSyncingPlayer(),
+				          std::format("Pickup Hash: 0x{}, Model Hash: 0x{:X}", data.m_PickupHash, data.m_ModelHash).c_str());
 				Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
 				return true;
 			}
@@ -537,13 +553,15 @@ namespace
 		}
 		case "Node_14359d660"_J:
 		{
-			auto data = (std::uint64_t)&node->GetData<char>();
-			for (int i = 0; i < *(int*)(data + 36); i++)
+			auto dataPtr = (std::uint64_t)&node->GetData<char>();
+			for (int i = 0; i < *(int*)(dataPtr + 36); i++)
 			{
-				if (*(int*)(data + 36ULL * i + 72ULL) < *(int*)(data + 36ULL * i + 64ULL))
+				if (*(int*)(dataPtr + 36ULL * i + 72ULL) < *(int*)(dataPtr + 36ULL * i + 64ULL))
 				{
-					LOGF(SYNC, WARNING, "Blocking wanted data array out of bounds range ({} < {}) from ", *(int*)(data + 36ULL * i + 72ULL), *(int*)(data + 36ULL * i + 64ULL), Protections::GetSyncingPlayer().GetName());
-					SyncBlocked("wanted data array out of bounds", Protections::GetSyncingPlayer(), std::format("Index {} out of bounds ({} < {})", i, *(int*)(data + 36ULL * i + 72ULL), *(int*)(data + 36ULL * i + 64ULL)).c_str()); // Mild Enhancement: Added details
+					LOGF(SYNC, WARNING, "Blocking wanted data array out of bounds range ({} < {}) from {}",
+					     *(int*)(dataPtr + 36ULL * i + 72ULL), *(int*)(dataPtr + 36ULL * i + 64ULL), Protections::GetSyncingPlayer().GetName());
+					SyncBlocked("wanted data array out of bounds", Protections::GetSyncingPlayer(),
+					          std::format("Index {} out of bounds ({} < {})", i, *(int*)(dataPtr + 36ULL * i + 72ULL), *(int*)(dataPtr + 36ULL * i + 64ULL)).c_str());
 					Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
 					return true;
 				}
@@ -552,12 +570,14 @@ namespace
 		}
 		case "CTrainGameStateUncommonNode"_J:
 		{
-			auto data = (std::uint64_t)&node->GetData<char>();
-			if (*(unsigned char*)(data + 12) >= Pointers.TrainConfigs->m_TrainConfigs.size())
+			auto dataPtr = (std::uint64_t)&node->GetData<char>();
+			if (*(unsigned char*)(dataPtr + 12) >= Pointers.TrainConfigs->m_TrainConfigs.size())
 			{
-				LOGF(SYNC, WARNING, "Blocking CTrainGameStateUncommonNode out of bounds train config ({} >= {}) from {}", *(unsigned char*)(data + 12), Pointers.TrainConfigs->m_TrainConfigs.size(), Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("out of bounds train config index crash", Protections::GetSyncingPlayer(), std::format("Index: {}, Max: {}", *(unsigned char*)(data + 12), Pointers.TrainConfigs->m_TrainConfigs.size()).c_str()); // Mild Enhancement: Added details
-				DeleteSyncObjectLater(object->m_ObjectId); // delete bad train just in case
+				LOGF(SYNC, WARNING, "Blocking CTrainGameStateUncommonNode out of bounds train config ({} >= {}) from {}",
+				     *(unsigned char*)(dataPtr + 12), Pointers.TrainConfigs->m_TrainConfigs.size(), Protections::GetSyncingPlayer().GetName());
+				SyncBlocked("out of bounds train config index crash", Protections::GetSyncingPlayer(),
+				          std::format("Index: {}, Max: {}", *(unsigned char*)(dataPtr + 12), Pointers.TrainConfigs->m_TrainConfigs.size()).c_str());
+				DeleteSyncObjectLater(object->m_ObjectId);
 				return true;
 			}
 			break;
@@ -568,52 +588,108 @@ namespace
 			if (g_BlacklistedAnimScenes.contains(data.m_AnimDict))
 			{
 				LOGF(SYNC, WARNING, "Blocking animscene 0x{:X} from {} since it's in the blacklist", data.m_AnimDict, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("bad anim scene", GetObjectCreator(object), std::format("AnimDict: 0x{:X}", data.m_AnimDict).c_str()); // Mild Enhancement: Added details
+				SyncBlocked("bad anim scene", GetObjectCreator(object), std::format("AnimDict: 0x{:X}", data.m_AnimDict).c_str());
 				DeleteSyncObject(object->m_ObjectId);
 				return true;
 			}
 			break;
 		}
-		}
-
-		return false;
-	}
-
-	bool SyncNodeVisitor(CProjectBaseSyncDataNode* node, NetObjType type, rage::netObject* object)
-	{
-		if (node->IsParentNode())
+		case "CPedTaskTreeNodeX"_J:
 		{
-			for (auto child = node->m_FirstChild; child; child = child->m_NextSibling)
+			auto& data = node->GetData<CPedTaskTreeData>();
+			int numTrees = data.GetNumTaskTrees();
+			const int MAX_TREES = 8;
+			const int MAX_TASKS_PER_TREE = 32;
+			if (numTrees > MAX_TREES)
 			{
-				if (SyncNodeVisitor(reinterpret_cast<CProjectBaseSyncDataNode*>(child), type, object))
-					return true;
+				LOG(WARNING) << "[Protections] Unexpected task tree count (" << numTrees
+				             << ") from " << Protections::GetSyncingPlayer().GetName()
+				             << " – clipping to " << MAX_TREES;
+				numTrees = MAX_TREES;
 			}
+			for (int i = 0; i < numTrees; ++i)
+			{
+				int numTasks = data.m_Trees[i].m_NumTasks;
+				if (numTasks > MAX_TASKS_PER_TREE)
+				{
+					LOG(WARNING) << "[Protections] Task count too high (" << numTasks
+					             << ") in tree " << i << " – clipping to " << MAX_TASKS_PER_TREE;
+					numTasks = MAX_TASKS_PER_TREE;
+				}
+				for (int j = 0; j < numTasks; ++j)
+				{
+					if (data.m_Trees[i].m_Tasks[j].m_TaskType == -1)
+					{
+						LOGF(SYNC, WARNING, "Blocking null task type (tree={}, task={}) from {}", i, j, Protections::GetSyncingPlayer().GetName());
+						SyncBlocked("task fuzzer crash", Protections::GetSyncingPlayer(), std::format("Tree: {}, Task: {}", i, j).c_str());
+						return true;
+					}
+					if (data.m_Trees[i].m_Tasks[j].m_TaskTreeType == 31)
+					{
+						LOGF(SYNC, WARNING, "Blocking invalid task tree type (tree={}, task={}) from {}", i, j, Protections::GetSyncingPlayer().GetName());
+						SyncBlocked("task fuzzer crash", Protections::GetSyncingPlayer(),
+						          std::format("Tree: {}, Task: {}, Type: {}", i, j, data.m_Trees[i].m_Tasks[j].m_TaskTreeType).c_str());
+						return true;
+					}
+				}
+			}
+			break;
 		}
-		else if (node->IsDataNode())
-		{
-			if (!node->IsActive())
-				return false;
-
-			if (YimMenu::Features::_LogClones.GetState())
-				YimMenu::Hooks::Protections::LogSyncNode(node, Nodes::Find((uint64_t)node), type, object, Protections::GetSyncingPlayer());
-			return ShouldBlockNode(node, Nodes::Find((uint64_t)node), type, object);
+		default:
+			break;
 		}
-
 		return false;
 	}
+
+	static bool SyncNodeVisitor(CProjectBaseSyncDataNode* node, NetObjType type, rage::netObject* object)
+    {
+        if (!node)
+            return false;
+        if (node->IsParentNode())
+        {
+            for (auto child = node->m_FirstChild; child; child = child->m_NextSibling)
+            {
+                if (SyncNodeVisitor(reinterpret_cast<CProjectBaseSyncDataNode*>(child), type, object))
+                    return true;
+            }
+        }
+        else if (node->IsDataNode())
+        {
+            if (!node->IsActive())
+                return false;
+            if (YimMenu::Features::_LogClones.GetState())
+            {
+                SyncNodeId nodeId = Nodes::Find(reinterpret_cast<uintptr_t>(node));
+                YimMenu::Hooks::Protections::LogSyncNode(node, nodeId, type, object, Protections::GetSyncingPlayer());
+            }
+            if (ShouldBlockNode(node, Nodes::Find(reinterpret_cast<uintptr_t>(node)), type, object))
+                return true;
+        }
+        return false;
+    }
 }
 
 namespace YimMenu::Hooks::Protections
 {
+	// Removed CrashGuard calls.
 	bool ShouldBlockSync(rage::netSyncTree* tree, NetObjType type, rage::netObject* object)
-	{
-		Nodes::Init();
-
-		if (g_Running && SyncNodeVisitor(reinterpret_cast<CProjectBaseSyncDataNode*>(tree->m_NextSyncNode), type, object))
-		{
-			return true;
-		}
-
-		return false;
-	}
+    {
+        Nodes::Init();
+        if (!tree || !tree->m_NextSyncNode)
+            return false;
+        bool blockSync = false;
+        try
+        {
+            if (g_Running && SyncNodeVisitor(reinterpret_cast<CProjectBaseSyncDataNode*>(tree->m_NextSyncNode), type, object))
+            {
+                blockSync = true;
+            }
+        }
+        catch (const std::exception& e)
+        {
+            LOG(WARNING) << "[Protections] Exception in ShouldBlockSync: " << e.what();
+            blockSync = true;
+        }
+        return blockSync;
+    }
 }
