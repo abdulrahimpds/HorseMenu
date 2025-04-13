@@ -150,6 +150,20 @@ namespace YimMenu::Submenus
 
 				ped.SetInvincible(godmode);
 
+				// Apply anti-lasso protection if godmode is enabled
+				if (godmode)
+				{
+					// anti ragdoll
+					ped.SetRagdoll(false);
+					// anti lasso
+					PED::SET_PED_LASSO_HOGTIE_FLAG(ped.GetHandle(), (int)LassoFlags::LHF_CAN_BE_LASSOED, false);
+					PED::SET_PED_LASSO_HOGTIE_FLAG(ped.GetHandle(), (int)LassoFlags::LHF_CAN_BE_LASSOED_BY_FRIENDLY_AI, false);
+					PED::SET_PED_LASSO_HOGTIE_FLAG(ped.GetHandle(), (int)LassoFlags::LHF_CAN_BE_LASSOED_BY_FRIENDLY_PLAYERS, false);
+					PED::SET_PED_LASSO_HOGTIE_FLAG(ped.GetHandle(), (int)LassoFlags::LHF_DISABLE_IN_MP, true);
+					// anti hogtie
+					ENTITY::_SET_ENTITY_CARRYING_FLAG(ped.GetHandle(), (int)CarryingFlags::CARRYING_FLAG_CAN_BE_HOGTIED, false);
+				}
+
 				ped.SetVisible(!invis);
 
 				if (scale != 1.0f)
