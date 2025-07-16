@@ -36,6 +36,35 @@ namespace YimMenu::Submenus
 		return Data::g_PedModels.contains(Joaat(model));
 	}
 
+	static std::string GetDefaultWeaponForPed(const std::string& pedModel)
+	{
+		auto modelHash = Joaat(pedModel);
+
+		// story character specific weapons
+		switch (modelHash)
+		{
+		case "player_zero"_J: // Arthur
+			return "WEAPON_REVOLVER_SCHOFIELD";
+		case "player_three"_J: // John
+			return "WEAPON_REVOLVER_SCHOFIELD";
+		case "cs_micahbell"_J: // Micah
+			return "WEAPON_REVOLVER_DOUBLEACTION";
+		case "cs_dutch"_J: // Dutch
+			return "WEAPON_REVOLVER_SCHOFIELD";
+		case "cs_javierescuella"_J: // Javier
+			return "WEAPON_REVOLVER_SCHOFIELD";
+		case "cs_charlessmith"_J: // Charles
+			return "WEAPON_BOW";
+		case "cs_mrsadler"_J: // Sadie
+			return "WEAPON_REPEATER_WINCHESTER";
+		case "CS_miltonandrews"_J: // Milton
+			return "WEAPON_PISTOL_MAUSER";
+		default:
+			// default weapons for generic peds
+			return "WEAPON_REVOLVER_CATTLEMAN";
+		}
+	}
+
 	static int PedSpawnerInputCallback(ImGuiInputTextCallbackData* data)
 	{
 		if (data->EventFlag == ImGuiInputTextFlags_CallbackCompletion)
@@ -77,7 +106,7 @@ namespace YimMenu::Submenus
 		static std::string pedModelBuffer;
 		static float scale = 1;
 		static int variation = 0;
-		static bool dead, invis, godmode, freeze, companion, sedated;
+		static bool dead, invis, godmode, freeze, companion, sedated, armed;
 		static int formation;
 		static std::vector<YimMenu::Ped> spawnedPeds;
 		InputTextWithHint("##pedmodel", "Ped Model", &pedModelBuffer, ImGuiInputTextFlags_CallbackCompletion, nullptr, PedSpawnerInputCallback)
@@ -108,6 +137,7 @@ namespace YimMenu::Submenus
 		ImGui::Checkbox("Invisible", &invis);
 		ImGui::Checkbox("GodMode", &godmode);
 		ImGui::Checkbox("Frozen", &freeze);
+		ImGui::Checkbox("Armed", &armed);
 		ImGui::Checkbox("Companion", &companion);
 		if (companion)
 		{
@@ -177,6 +207,16 @@ namespace YimMenu::Submenus
 
 				if (variation > 0)
 					ped.SetVariation(variation);
+
+				// give weapon if armed is enabled and ped is not an animal
+				if (armed && !ped.IsAnimal())
+				{
+					auto weapon = GetDefaultWeaponForPed(pedModelBuffer);
+					WEAPON::GIVE_WEAPON_TO_PED(ped.GetHandle(), Joaat(weapon), 100, true, false, 0, true, 0.5f, 1.0f, 0x2CD419DC, true, 0.0f, false);
+					WEAPON::SET_PED_INFINITE_AMMO(ped.GetHandle(), true, Joaat(weapon));
+					ScriptMgr::Yield();
+					WEAPON::SET_CURRENT_PED_WEAPON(ped.GetHandle(), "WEAPON_UNARMED"_J, true, 0, false, false);
+				}
 
 				ped.SetConfigFlag(PedConfigFlag::IsTranquilized, sedated);
 
@@ -253,6 +293,16 @@ namespace YimMenu::Submenus
 					Self::GetPed().SetVariation(variation);
 				else
 					PED::_SET_RANDOM_OUTFIT_VARIATION(Self::GetPed().GetHandle(), true);
+
+				// give weapon if armed is enabled and ped is not an animal
+				if (armed && !Self::GetPed().IsAnimal())
+				{
+					auto weapon = GetDefaultWeaponForPed(pedModelBuffer);
+					WEAPON::GIVE_WEAPON_TO_PED(Self::GetPed().GetHandle(), Joaat(weapon), 100, true, false, 0, true, 0.5f, 1.0f, 0x2CD419DC, true, 0.0f, false);
+					WEAPON::SET_PED_INFINITE_AMMO(Self::GetPed().GetHandle(), true, Joaat(weapon));
+					ScriptMgr::Yield();
+					WEAPON::SET_CURRENT_PED_WEAPON(Self::GetPed().GetHandle(), "WEAPON_UNARMED"_J, true, 0, false, false);
+				}
 
 				STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(model);
 			});
