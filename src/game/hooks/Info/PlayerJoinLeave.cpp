@@ -50,34 +50,32 @@ namespace YimMenu::Hooks
 				ChatDisplay::Clear();
 			}
 
-			// Check if we're attached to the player who is leaving
+			// check if we're attached to the player who is leaving
 			if (Features::g_AttachedToPlayerId == player->m_PlayerIndex && Features::g_AttachedToPlayerHandle != 0)
 			{
 				FiberPool::Push([] {
 					auto selfPed = Self::GetPed();
 					if (selfPed.IsValid() && ENTITY::IS_ENTITY_ATTACHED_TO_ANY_PED(selfPed.GetHandle()))
 					{
-						// Detach from the leaving player
+						// detach from the leaving player
 						ENTITY::DETACH_ENTITY(selfPed.GetHandle(), true, true);
 						PED::SET_PED_SHOULD_PLAY_IMMEDIATE_SCENARIO_EXIT(selfPed.GetHandle());
 						TASK::CLEAR_PED_TASKS_IMMEDIATELY(selfPed.GetHandle(), true, true);
 
-						// Clear attachment tracking
 						Features::g_AttachedToPlayerHandle = 0;
 						Features::g_AttachedToPlayerId = -1;
 
-						// Force model refresh to fix invisibility
+						// force model refresh to fix invisibility issue
 						selfPed.SetVisible(false);
 						ScriptMgr::Yield(50ms);
 						selfPed.SetVisible(true);
 
-						// Force network sync refresh
 						if (selfPed.IsNetworked())
 						{
 							selfPed.ForceSync();
 						}
 
-						// Additional refresh by reapplying current model
+						// additional refresh by reapplying current model
 						auto selfPlayer = Self::GetPlayer();
 						if (selfPlayer.IsValid())
 						{
@@ -89,7 +87,7 @@ namespace YimMenu::Hooks
 							}
 						}
 
-						Notifications::Show("Attachment", "Automatically detached due to player leaving session", NotificationType::Info);
+						Notifications::Show("Attachment", "automatically detached due to player leaving session", NotificationType::Info);
 					}
 				});
 			}

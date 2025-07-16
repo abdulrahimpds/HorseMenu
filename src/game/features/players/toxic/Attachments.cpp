@@ -9,7 +9,7 @@
 
 namespace YimMenu::Features
 {
-	// Global variables to track attachment state
+	// global variables to track attachment state
 	int g_AttachedToPlayerHandle = 0;
 	int g_AttachedToPlayerId = -1;
 	static void ClearPedTasks(int ped)
@@ -34,10 +34,11 @@ namespace YimMenu::Features
 	{
 		ENTITY::ATTACH_ENTITY_TO_ENTITY(Self::GetPed().GetHandle(), target, 0, PosX, PosY, PosZ, RotX, RotY, RotZ, false, false, false, true, 0, true, false, false);
 
-		// Track attachment state
+		// track attachment state for monitoring system
 		g_AttachedToPlayerHandle = target;
-		// Find player ID from handle
 		g_AttachedToPlayerId = -1;
+
+		// find player id from handle for tracking
 		for (auto& [id, player] : Players::GetPlayers())
 		{
 			if (player.GetPed().IsValid() && player.GetPed().GetHandle() == target)
@@ -118,20 +119,20 @@ namespace YimMenu::Features
 				ENTITY::DETACH_ENTITY(Self::GetPed().GetHandle(), true, true);
 			ClearPedTasks(Self::GetPed().GetHandle());
 
-			// Clear attachment tracking
+			// clear attachment tracking state
 			g_AttachedToPlayerHandle = 0;
 			g_AttachedToPlayerId = -1;
 		}
 	};
 
-	// Attachment monitoring system to prevent invisibility issues
+	// attachment monitoring system to prevent invisibility issues
 	class AttachmentMonitor : public LoopedCommand
 	{
 		using LoopedCommand::LoopedCommand;
 
 		virtual void OnTick() override
 		{
-			// Only monitor if we're attached to someone
+			// only monitor if we're attached to someone
 			if (g_AttachedToPlayerId == -1 || g_AttachedToPlayerHandle == 0)
 				return;
 
@@ -139,22 +140,20 @@ namespace YimMenu::Features
 			if (!selfPed.IsValid())
 				return;
 
-			// Check if we're still attached
+			// check if we're still attached
 			if (!ENTITY::IS_ENTITY_ATTACHED_TO_ANY_PED(selfPed.GetHandle()))
 			{
-				// We're no longer attached, clear tracking
 				g_AttachedToPlayerHandle = 0;
 				g_AttachedToPlayerId = -1;
 				return;
 			}
 
-			// Check if the player we're attached to still exists and is valid
+			// check if the player we're attached to still exists and is valid
 			bool playerStillValid = false;
 			for (auto& [id, player] : Players::GetPlayers())
 			{
 				if (id == g_AttachedToPlayerId && player.IsValid() && player.GetPed().IsValid())
 				{
-					// Check if the handle is still the same
 					if (player.GetPed().GetHandle() == g_AttachedToPlayerHandle)
 					{
 						playerStillValid = true;
@@ -163,21 +162,18 @@ namespace YimMenu::Features
 				}
 			}
 
-			// If player is no longer valid or left the session, detach and refresh
+			// if player is no longer valid or left the session, detach and refresh
 			if (!playerStillValid)
 			{
-				// Detach from invalid entity
 				ENTITY::DETACH_ENTITY(selfPed.GetHandle(), true, true);
 				ClearPedTasks(selfPed.GetHandle());
 
-				// Clear attachment tracking
 				g_AttachedToPlayerHandle = 0;
 				g_AttachedToPlayerId = -1;
 
-				// Force model refresh to fix invisibility
 				RefreshPlayerModel();
 
-				Notifications::Show("Attachment", "Automatically detached due to player leaving session", NotificationType::Info);
+				Notifications::Show("Attachment", "automatically detached due to player leaving session", NotificationType::Info);
 			}
 		}
 
@@ -190,21 +186,20 @@ namespace YimMenu::Features
 			if (!selfPlayer.IsValid() || !selfPed.IsValid())
 				return;
 
-			// Get current model
 			auto currentModel = selfPed.GetModel();
 
-			// Force visibility refresh
+			// force visibility refresh to fix local rendering
 			selfPed.SetVisible(false);
 			ScriptMgr::Yield(50ms);
 			selfPed.SetVisible(true);
 
-			// Force network sync refresh
+			// force network sync refresh
 			if (selfPed.IsNetworked())
 			{
 				selfPed.ForceSync();
 			}
 
-			// Additional refresh by briefly changing and restoring model if needed
+			// additional refresh by reapplying current model
 			if (STREAMING::HAS_MODEL_LOADED(currentModel))
 			{
 				PLAYER::SET_PLAYER_MODEL(selfPlayer.GetId(), currentModel, false);
@@ -218,5 +213,5 @@ namespace YimMenu::Features
 	static TouchPlayer _TouchPlayer{"touchplayer", "Touch Player", "Touches the other player..."};
 	static Slap _Slap{"slap", "Slap", "Slaps the player"};
 	static CancelAttachment _CancelAttachment{"cancelattachment", "Cancel Attachment", "Cancels current attachment"};
-	static AttachmentMonitor _AttachmentMonitor{"attachmentmonitor", "Attachment Monitor", "Automatically handles attachment cleanup to prevent invisibility issues"};
+	static AttachmentMonitor _AttachmentMonitor{"attachmentmonitor", "Attachment Monitor", "automatically handles attachment cleanup to prevent invisibility issues"};
 }
