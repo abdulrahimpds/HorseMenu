@@ -76,6 +76,7 @@ namespace YimMenu::Submenus
 
 		static std::string pedModelBuffer;
 		static float scale = 1;
+		static int variation = 0;
 		static bool dead, invis, godmode, freeze, companion, sedated;
 		static int formation;
 		static std::vector<YimMenu::Ped> spawnedPeds;
@@ -131,6 +132,11 @@ namespace YimMenu::Submenus
 		}
 		ImGui::SliderFloat("Scale", &scale, 0.1, 10);
 
+		ImGui::SetNextItemWidth(150);
+		ImGui::InputInt("Variation", &variation);
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("outfit variation number (0 = random/default)");
+
 		if (ImGui::Button("Spawn"))
 		{
 			FiberPool::Push([] {
@@ -168,6 +174,9 @@ namespace YimMenu::Submenus
 
 				if (scale != 1.0f)
 					ped.SetScale(scale);
+
+				if (variation > 0)
+					ped.SetVariation(variation);
 
 				ped.SetConfigFlag(PedConfigFlag::IsTranquilized, sedated);
 
@@ -239,7 +248,12 @@ namespace YimMenu::Submenus
 
 				PLAYER::SET_PLAYER_MODEL(Self::GetPlayer().GetId(), model, false);
 				Self::Update();
-				PED::_SET_RANDOM_OUTFIT_VARIATION(Self::GetPed().GetHandle(), true);
+
+				if (variation > 0)
+					Self::GetPed().SetVariation(variation);
+				else
+					PED::_SET_RANDOM_OUTFIT_VARIATION(Self::GetPed().GetHandle(), true);
+
 				STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(model);
 			});
 		}
