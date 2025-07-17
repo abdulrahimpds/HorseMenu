@@ -308,6 +308,12 @@ namespace YimMenu::Submenus
 			});
 		}
 		ImGui::SameLine();
+		if (ImGui::Button("Story Gang"))
+		{
+			// placeholder for story gang functionality
+			// will be implemented later with specific gang variants
+		}
+		ImGui::SameLine();
 		if (ImGui::Button("Cleanup Peds"))
 		{
 			FiberPool::Push([] {
