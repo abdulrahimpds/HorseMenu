@@ -20,6 +20,10 @@ namespace YimMenu::Hooks
 	static bool g_InSession = false;
 	static bool g_NeedsAutoFix = false;
 
+	// same-session sync monitoring
+	static std::chrono::steady_clock::time_point g_LastSyncCheck = std::chrono::steady_clock::now();
+	static bool g_SyncMonitoringActive = false;
+
 	// function to store current model when using Set Model
 	void Info::UpdateStoredPlayerModel(uint32_t model, int variation)
 	{
@@ -28,11 +32,77 @@ namespace YimMenu::Hooks
 			g_BaseModel = model;
 			g_StoredCustomModel = 0;
 			g_StoredVariation = 0;
+			g_SyncMonitoringActive = false; // stop monitoring standard models
 		}
 		else
 		{
 			g_StoredCustomModel = model;
 			g_StoredVariation = variation;
+			g_SyncMonitoringActive = true; // start monitoring custom models
+			g_LastSyncCheck = std::chrono::steady_clock::now();
+		}
+	}
+
+	// lightweight sync repair without model switching
+	static void PerformSyncRepair()
+	{
+		auto selfPlayer = Self::GetPlayer();
+		auto selfPed = Self::GetPed();
+
+		if (!selfPlayer.IsValid() || !selfPed.IsValid())
+			return;
+
+		auto currentModel = selfPed.GetModel();
+
+		// only repair custom models
+		if (currentModel == "mp_male"_J || currentModel == "mp_female"_J)
+			return;
+
+		LOGF(VERBOSE, "Performing gentle sync refresh for custom model");
+
+		// very gentle repair: only force network sync without visibility changes
+		if (selfPed.IsNetworked())
+		{
+			// gentle network sync - no visibility cycling to avoid invisibility
+			selfPed.ForceSync();
+			ScriptMgr::Yield(100ms);
+		}
+
+		// no model reapplication - too aggressive and causes issues
+		// the network sync validation fix should be sufficient
+	}
+
+	// monitor for sync issues and auto-repair
+	static void MonitorSyncHealth()
+	{
+		// disabled for now - the network validation fix should be sufficient
+		// automatic repairs were causing invisibility issues
+		return;
+
+		if (!g_SyncMonitoringActive || !g_InSession)
+			return;
+
+		auto now = std::chrono::steady_clock::now();
+		auto timeSinceLastCheck = std::chrono::duration_cast<std::chrono::minutes>(now - g_LastSyncCheck);
+
+		// check every 3 minutes for custom models
+		if (timeSinceLastCheck.count() >= 3)
+		{
+			auto selfPed = Self::GetPed();
+			if (selfPed.IsValid())
+			{
+				auto currentModel = selfPed.GetModel();
+
+				// if using custom model, perform preventive sync repair
+				if (currentModel != "mp_male"_J && currentModel != "mp_female"_J)
+				{
+					FiberPool::Push([] {
+						PerformSyncRepair();
+					});
+				}
+			}
+
+			g_LastSyncCheck = now;
 		}
 	}
 
@@ -137,6 +207,9 @@ namespace YimMenu::Hooks
 				g_InSession = true;
 				LOGF(VERBOSE, "Joined session but no model fix needed");
 			}
+
+			// monitor sync health for custom models
+			MonitorSyncHealth();
 
 			break;
 		}

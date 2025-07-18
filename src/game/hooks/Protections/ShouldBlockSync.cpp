@@ -146,7 +146,8 @@ namespace
 
 	inline bool IsValidPlayerModel(rage::joaat_t model)
 	{
-		return g_ValidPlayerModels.contains(model);
+		// allow any valid ped model to fix custom model sync issues
+		return STREAMING::IS_MODEL_A_PED(model);
 	}
 
 	inline void CheckPlayerModel(YimMenu::Player player, uint32_t model)
