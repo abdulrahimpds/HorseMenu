@@ -1,6 +1,5 @@
 #include "Spawner.hpp"
 
-#include "World/PedSpawner.hpp"
 #include "World/Train.hpp"
 #include "World/VehicleSpawner.hpp"
 #include "core/commands/Commands.hpp"
@@ -12,20 +11,37 @@
 #include "game/backend/Self.hpp"
 #include "game/frontend/items/Items.hpp"
 #include "game/frontend/Menu.hpp"
+#include "game/hooks/Hooks.hpp"
 #include "game/rdr/Enums.hpp"
 #include "game/rdr/Natives.hpp"
 #include "game/rdr/Pools.hpp"
 #include "game/rdr/data/PedModels.hpp"
 
+#include <algorithm>
 #include <game/rdr/Natives.hpp>
 #include <rage/fwBasePool.hpp>
 #include <rage/pools.hpp>
 
 namespace YimMenu::Submenus
 {
-	// forward declarations for native hook functions from PedSpawner.cpp
-	void GET_NUMBER_OF_THREADS_RUNNING_THE_SCRIPT_WITH_THIS_HASH(rage::scrNativeCallContext* ctx);
-	void _GET_META_PED_TYPE(rage::scrNativeCallContext* ctx);
+	// native hook functions for ped spawning (essential for Set Model)
+	// using base code approach - simple hooks that work without multiplayer interference
+	void GET_NUMBER_OF_THREADS_RUNNING_THE_SCRIPT_WITH_THIS_HASH(rage::scrNativeCallContext* ctx)
+	{
+		if (ctx->GetArg<int>(0) == "mp_intro"_J)
+		{
+			ctx->SetReturnValue<int>(1);
+		}
+		else
+		{
+			ctx->SetReturnValue<int>(SCRIPTS::GET_NUMBER_OF_THREADS_RUNNING_THE_SCRIPT_WITH_THIS_HASH(ctx->GetArg<int>(0)));
+		}
+	}
+
+	void _GET_META_PED_TYPE(rage::scrNativeCallContext* ctx)
+	{
+		ctx->SetReturnValue<int>(4);
+	}
 
 	// state management for nested navigation in peds category
 	static bool g_InPedDatabase = false;
@@ -41,6 +57,9 @@ namespace YimMenu::Submenus
 	static int g_Variation = 0;
 	static int g_Formation = 0;
 	static std::vector<YimMenu::Ped> g_SpawnedPeds;
+
+	// group formations for companion system
+	inline std::unordered_map<int, const char*> groupFormations = {{0, "Default"}, {1, "Circle Around Leader"}, {2, "Alternative Circle Around Leader"}, {3, "Line, with Leader at center"}};
 
 	// helper functions from original PedSpawner
 	static bool IsPedModelInList(const std::string& model)
@@ -104,6 +123,8 @@ namespace YimMenu::Submenus
 		}
 		return 0;
 	}
+
+
 
 	static void RenderPedDatabaseView()
 	{
@@ -280,11 +301,14 @@ namespace YimMenu::Submenus
 		ImGui::PushID("peds"_J);
 
 		// setup native hooks (essential for Set Model functionality)
-		static auto model_hook = ([]() {
+		// only set up hooks when this specific UI is active to avoid multiplayer interference
+		static bool hooks_initialized = false;
+		if (!hooks_initialized)
+		{
 			NativeHooks::AddHook("long_update"_J, NativeIndex::GET_NUMBER_OF_THREADS_RUNNING_THE_SCRIPT_WITH_THIS_HASH, GET_NUMBER_OF_THREADS_RUNNING_THE_SCRIPT_WITH_THIS_HASH);
 			NativeHooks::AddHook("long_update"_J, NativeIndex::_GET_META_PED_TYPE, _GET_META_PED_TYPE);
-			return true;
-		}());
+			hooks_initialized = true;
+		}
 
 		// ped database button at the top
 		if (ImGui::Button("Ped Database", ImVec2(120, 30)))
@@ -504,6 +528,9 @@ namespace YimMenu::Submenus
 					Self::GetPed().SetVariation(g_Variation);
 				else
 					PED::_SET_RANDOM_OUTFIT_VARIATION(Self::GetPed().GetHandle(), true);
+
+				// track model and variation for automatic session fix
+				Hooks::Info::UpdateStoredPlayerModel(model, g_Variation);
 
 				// give weapon if armed is enabled and ped is not an animal
 				if (g_Armed && !Self::GetPed().IsAnimal())
