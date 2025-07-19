@@ -14,22 +14,7 @@
 
 namespace YimMenu::Submenus
 {
-	void GET_NUMBER_OF_THREADS_RUNNING_THE_SCRIPT_WITH_THIS_HASH(rage::scrNativeCallContext* ctx)
-	{
-		if (ctx->GetArg<int>(0) == "mp_intro"_J)
-		{
-			ctx->SetReturnValue<int>(1);
-		}
-		else
-		{
-			ctx->SetReturnValue<int>(SCRIPTS::GET_NUMBER_OF_THREADS_RUNNING_THE_SCRIPT_WITH_THIS_HASH(ctx->GetArg<int>(0)));
-		}
-	}
-
-	void _GET_META_PED_TYPE(rage::scrNativeCallContext* ctx)
-	{
-		ctx->SetReturnValue<int>(4);
-	}
+	// Native hook functions are now defined in Spawner.cpp to avoid duplicate symbols
 
 	static bool IsPedModelInList(const std::string& model)
 	{
@@ -97,11 +82,7 @@ namespace YimMenu::Submenus
 	{
 		ImGui::PushID("peds"_J);
 
-		static auto model_hook = ([]() {
-			NativeHooks::AddHook("long_update"_J, NativeIndex::GET_NUMBER_OF_THREADS_RUNNING_THE_SCRIPT_WITH_THIS_HASH, GET_NUMBER_OF_THREADS_RUNNING_THE_SCRIPT_WITH_THIS_HASH);
-			NativeHooks::AddHook("long_update"_J, NativeIndex::_GET_META_PED_TYPE, _GET_META_PED_TYPE);
-			return true;
-		}());
+		// Native hooks are now registered in Spawner.cpp to avoid duplicate symbols
 
 		static std::string pedModelBuffer;
 		static float scale = 1;
