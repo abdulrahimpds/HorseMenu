@@ -254,6 +254,175 @@ namespace YimMenu::Submenus
 		ImGui::Text("This will contain horse breeds and spawning options.");
 	}
 
+	// legendary animals data structure
+	struct LegendaryAnimal
+	{
+		std::string name;
+		std::string model;
+		int variation;
+	};
+
+	// legendary animals data (parsed from animals.txt)
+	static std::vector<LegendaryAnimal> g_LegendaryAnimals = {
+		{"Bull Gator", "a_c_alligator_02", 0},
+		{"Bharati Grizzly Bear", "a_c_bear_01", 1},
+		{"Beaver", "a_c_beaver_01", 1},
+		{"Big Horn Ram", "a_c_bighornram_01", 12},
+		{"Boar", "a_c_boarlegendary_01", 0},
+		{"Buck", "a_c_buck_01", 3},
+		{"Tatanka Bison", "a_c_buffalo_tatanka_01", 0},
+		{"White Bison", "a_c_buffalo_01", 4},
+		{"Cougar", "a_c_cougar_01", 5},
+		{"Coyote", "a_c_coyote_01", 1},
+		{"Elk", "a_c_elk_01", 1},
+		{"Fox", "a_c_fox_01", 3},
+		{"Moose", "a_c_moose_01", 6},
+		{"Giaguaro Panther", "a_c_panther_01", 1},
+		{"Pronghorn", "a_c_pronghorn_01", 1},
+		{"Wolf", "a_c_wolf", 3},
+		{"Teca Gator", "MP_A_C_Alligator_01", 0},
+		{"Sun Gator", "MP_A_C_Alligator_01", 1},
+		{"Banded Gator", "MP_A_C_Alligator_01", 2},
+		{"Owiza Bear", "MP_A_C_Bear_01", 1},
+		{"Ridgeback Spirit Bear", "MP_A_C_Bear_01", 2},
+		{"Golden Spirit Bear", "MP_A_C_Bear_01", 3},
+		{"Zizi Beaver", "MP_A_C_Beaver_01", 0},
+		{"Moon Beaver", "MP_A_C_Beaver_01", 1},
+		{"Night Beaver", "MP_A_C_Beaver_01", 2},
+		{"Gabbro Horn Ram", "MP_A_C_BigHornRam_01", 0},
+		{"Chalk Horn Ram", "MP_A_C_BigHornRam_01", 1},
+		{"Rutile Horn Ram", "MP_A_C_BigHornRam_01", 2},
+		{"Cogi Boar", "MP_A_C_Boar_01", 0},
+		{"Wakpa Boar", "MP_A_C_Boar_01", 1},
+		{"Icahi Boar", "MP_A_C_Boar_01", 2},
+		{"Mud Runner Buck", "MP_A_C_Buck_01", 2},
+		{"Snow Buck", "MP_A_C_Buck_01", 3},
+		{"Shadow Buck", "MP_A_C_Buck_01", 4},
+		{"Tatanka Bison (Online)", "MP_A_C_Buffalo_01", 0},
+		{"Winyan Bison", "MP_A_C_Buffalo_01", 1},
+		{"Payta Bison", "MP_A_C_Buffalo_01", 2},
+		{"Iguga Cougar", "MP_A_C_Cougar_01", 0},
+		{"Maza Cougar", "MP_A_C_Cougar_01", 1},
+		{"Sapa Cougar", "MP_A_C_Cougar_01", 2},
+		{"Red Streak Coyote", "MP_A_C_Coyote_01", 0},
+		{"Midnight Paw Coyote", "MP_A_C_Coyote_01", 1},
+		{"Milk Coyote", "MP_A_C_Coyote_01", 2},
+		{"Katata Elk", "MP_A_C_Elk_01", 1},
+		{"Ozula Elk", "MP_A_C_Elk_01", 2},
+		{"Inahme Elk", "MP_A_C_Elk_01", 3},
+		{"Ota Fox", "MP_A_C_Fox_01", 0},
+		{"Marble Fox", "MP_A_C_Fox_01", 1},
+		{"Cross Fox", "MP_A_C_Fox_01", 2},
+		{"Snowflake Moose", "MP_A_C_Moose_01", 1},
+		{"Knight Moose", "MP_A_C_Moose_01", 2},
+		{"Ruddy Moose", "MP_A_C_Moose_01", 3},
+		{"Nightwalker Panther", "MP_A_C_Panther_01", 0},
+		{"Ghost Panther", "MP_A_C_Panther_01", 1},
+		{"Iwakta Panther", "MP_A_C_Panther_01", 2},
+		{"Emerald Wolf", "MP_A_C_Wolf_01", 0},
+		{"Onyx Wolf", "MP_A_C_Wolf_01", 1},
+		{"Moonstone Wolf", "MP_A_C_Wolf_01", 2}
+	};
+
+	static void SpawnAnimal(const std::string& model, int variation)
+	{
+		FiberPool::Push([model, variation] {
+			auto ped = Ped::Create(Joaat(model), Self::GetPed().GetPosition());
+
+			if (!ped)
+				return;
+
+			ped.SetFrozen(g_Freeze);
+
+			if (g_Dead)
+			{
+				ped.Kill();
+				if (ped.IsAnimal())
+					ped.SetQuality(2);
+			}
+
+			ped.SetInvincible(g_Godmode);
+
+			// apply anti-lasso protection if godmode is enabled
+			if (g_Godmode)
+			{
+				// anti ragdoll
+				ped.SetRagdoll(false);
+				// anti lasso
+				PED::SET_PED_LASSO_HOGTIE_FLAG(ped.GetHandle(), (int)LassoFlags::LHF_CAN_BE_LASSOED, false);
+				PED::SET_PED_LASSO_HOGTIE_FLAG(ped.GetHandle(), (int)LassoFlags::LHF_CAN_BE_LASSOED_BY_FRIENDLY_AI, false);
+				PED::SET_PED_LASSO_HOGTIE_FLAG(ped.GetHandle(), (int)LassoFlags::LHF_CAN_BE_LASSOED_BY_FRIENDLY_PLAYERS, false);
+				PED::SET_PED_LASSO_HOGTIE_FLAG(ped.GetHandle(), (int)LassoFlags::LHF_DISABLE_IN_MP, true);
+				// anti hogtie
+				ENTITY::_SET_ENTITY_CARRYING_FLAG(ped.GetHandle(), (int)CarryingFlags::CARRYING_FLAG_CAN_BE_HOGTIED, false);
+			}
+
+			ped.SetVisible(!g_Invis);
+
+			if (g_Scale != 1.0f)
+				ped.SetScale(g_Scale);
+
+			// apply variation for legendary animals
+			if (variation > 0)
+				ped.SetVariation(variation);
+
+			ped.SetConfigFlag(PedConfigFlag::IsTranquilized, g_Sedated);
+
+			g_SpawnedPeds.push_back(ped);
+
+			if (g_Companion)
+			{
+				int group = PED::GET_PED_GROUP_INDEX(YimMenu::Self::GetPed().GetHandle());
+				if (!PED::DOES_GROUP_EXIST(group))
+				{
+					group = PED::CREATE_GROUP(0);
+					PED::SET_PED_AS_GROUP_LEADER(YimMenu::Self::GetPed().GetHandle(), group, false);
+				}
+
+				ENTITY::SET_ENTITY_AS_MISSION_ENTITY(ped.GetHandle(), true, true);
+				PED::SET_PED_AS_GROUP_MEMBER(ped.GetHandle(), group);
+				PED::SET_PED_CAN_BE_TARGETTED_BY_PLAYER(ped.GetHandle(), YimMenu::Self::GetPlayer().GetId(), false);
+				PED::SET_PED_RELATIONSHIP_GROUP_HASH(
+				    ped.GetHandle(), PED::GET_PED_RELATIONSHIP_GROUP_HASH(YimMenu::Self::GetPed().GetHandle()));
+
+				PED::SET_GROUP_FORMATION(PED::GET_PED_GROUP_INDEX(ped.GetHandle()), g_Formation);
+
+				DECORATOR::DECOR_SET_INT(ped.GetHandle(), "SH_CMP_companion", 2);
+
+				if (ped.IsAnimal())
+				{
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 104, 0.0);
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 105, 0.0);
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 10, 0.0);
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 146, 0.0);
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 113, 0.0);
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 114, 0.0);
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 115, 0.0);
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 116, 0.0);
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 117, 0.0);
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 118, 0.0);
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 119, 0.0);
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 111, 0.0);
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 107, 0.0);
+				}
+				PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped.GetHandle(), false);
+
+				ped.SetConfigFlag(PedConfigFlag::_0x16A14D9A, false);
+				ped.SetConfigFlag(PedConfigFlag::_DisableHorseFleeILO, true);
+				ped.SetConfigFlag(PedConfigFlag::_0x74F95F2E, false);
+				ped.SetConfigFlag(PedConfigFlag::Avoidance_Ignore_All, false);
+				ped.SetConfigFlag(PedConfigFlag::DisableShockingEvents, false);
+				ped.SetConfigFlag(PedConfigFlag::DisablePedAvoidance, false);
+				ped.SetConfigFlag(PedConfigFlag::DisableExplosionReactions, false);
+				ped.SetConfigFlag(PedConfigFlag::DisableEvasiveStep, false);
+				ped.SetConfigFlag(PedConfigFlag::DisableHorseGunshotFleeResponse, true);
+
+				auto blip = MAP::BLIP_ADD_FOR_ENTITY("BLIP_STYLE_COMPANION"_J, ped.GetHandle());
+				MAP::BLIP_ADD_MODIFIER(blip, "BLIP_MODIFIER_COMPANION_DOG"_J);
+			}
+		});
+	}
+
 	static void RenderAnimalsView()
 	{
 		// back button in top-right corner
@@ -269,10 +438,46 @@ namespace YimMenu::Submenus
 		// reset cursor to original position and add some top margin
 		ImGui::SetCursorPos(ImVec2(originalPos.x, originalPos.y + 35));
 
-		// placeholder content for animals
-		ImGui::Text("Animals - Coming Soon");
-		ImGui::Separator();
-		ImGui::Text("This will contain animal categories and spawning options.");
+		// helper function for centered separator with custom line width
+		auto RenderCenteredSeparator = [](const char* text) {
+			ImGui::PushFont(Menu::Font::g_ChildTitleFont);
+			ImVec2 textSize = ImGui::CalcTextSize(text);
+			ImVec2 contentRegion = ImGui::GetContentRegionAvail();
+
+			// center text
+			ImGui::SetCursorPosX((contentRegion.x - textSize.x) * 0.5f);
+			ImGui::Text(text);
+			ImGui::PopFont();
+
+			// draw centered line (3x text width)
+			float lineWidth = textSize.x * 3.0f;
+			float linePosX = (contentRegion.x - lineWidth) * 0.5f;
+			ImVec2 cursorPos = ImGui::GetCursorPos();
+			ImDrawList* drawList = ImGui::GetWindowDrawList();
+			ImVec2 windowPos = ImGui::GetWindowPos();
+
+			drawList->AddLine(
+				ImVec2(windowPos.x + linePosX, windowPos.y + cursorPos.y),
+				ImVec2(windowPos.x + linePosX + lineWidth, windowPos.y + cursorPos.y),
+				ImGui::GetColorU32(ImGuiCol_Separator), 1.0f);
+
+			ImGui::SetCursorPosY(cursorPos.y + 5);
+			ImGui::Spacing();
+		};
+
+		// legendary animals section
+		RenderCenteredSeparator("Legendary Animals");
+
+		// legendary animals spawn buttons
+		for (const auto& animal : g_LegendaryAnimals)
+		{
+			if (ImGui::Button(animal.name.c_str(), ImVec2(-1, 25)))
+			{
+				SpawnAnimal(animal.model, animal.variation);
+			}
+		}
+
+		ImGui::Spacing();
 	}
 
 	static void RenderFishesView()
