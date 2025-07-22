@@ -512,9 +512,10 @@ namespace YimMenu::Submenus
 		{"Street", "A_C_DOGSTREET_01", 0}
 	};
 
-	static void SpawnAnimal(const std::string& model, int variation)
+	// unified ped spawning function - used by all spawn buttons
+	static void SpawnPed(const std::string& model, int variation, bool giveWeapon = false)
 	{
-		FiberPool::Push([model, variation] {
+		FiberPool::Push([model, variation, giveWeapon] {
 			auto ped = Ped::Create(Joaat(model), Self::GetPed().GetPosition());
 
 			if (!ped)
@@ -550,8 +551,18 @@ namespace YimMenu::Submenus
 			if (g_Scale != 1.0f)
 				ped.SetScale(g_Scale);
 
-			// apply variation for legendary animals
+			// apply variation
 			ped.SetVariation(variation);
+
+			// give weapon if requested and ped is not an animal
+			if (giveWeapon && g_Armed && !ped.IsAnimal())
+			{
+				auto weapon = GetDefaultWeaponForPed(model);
+				WEAPON::GIVE_WEAPON_TO_PED(ped.GetHandle(), Joaat(weapon), 100, true, false, 0, true, 0.5f, 1.0f, 0x2CD419DC, true, 0.0f, false);
+				WEAPON::SET_PED_INFINITE_AMMO(ped.GetHandle(), true, Joaat(weapon));
+				ScriptMgr::Yield();
+				WEAPON::SET_CURRENT_PED_WEAPON(ped.GetHandle(), "WEAPON_UNARMED"_J, true, 0, false, false);
+			}
 
 			ped.SetConfigFlag(PedConfigFlag::IsTranquilized, g_Sedated);
 
@@ -608,6 +619,12 @@ namespace YimMenu::Submenus
 				MAP::BLIP_ADD_MODIFIER(blip, "BLIP_MODIFIER_COMPANION_DOG"_J);
 			}
 		});
+	}
+
+	// convenience wrapper for animal spawning (no weapons)
+	static void SpawnAnimal(const std::string& model, int variation)
+	{
+		SpawnPed(model, variation, false);
 	}
 
 	// reusable search helper system for all navigation menus
@@ -955,110 +972,7 @@ namespace YimMenu::Submenus
 		// action buttons
 		if (ImGui::Button("Spawn"))
 		{
-			FiberPool::Push([] {
-				auto ped = Ped::Create(Joaat(g_PedModelBuffer), Self::GetPed().GetPosition());
-
-				if (!ped)
-					return;
-
-				ped.SetFrozen(g_Freeze);
-
-				if (g_Dead)
-				{
-					ped.Kill();
-					if (ped.IsAnimal())
-						ped.SetQuality(2);
-				}
-
-				ped.SetInvincible(g_Godmode);
-
-				// apply anti-lasso protection if godmode is enabled
-				if (g_Godmode)
-				{
-					// anti ragdoll
-					ped.SetRagdoll(false);
-					// anti lasso
-					PED::SET_PED_LASSO_HOGTIE_FLAG(ped.GetHandle(), (int)LassoFlags::LHF_CAN_BE_LASSOED, false);
-					PED::SET_PED_LASSO_HOGTIE_FLAG(ped.GetHandle(), (int)LassoFlags::LHF_CAN_BE_LASSOED_BY_FRIENDLY_AI, false);
-					PED::SET_PED_LASSO_HOGTIE_FLAG(ped.GetHandle(), (int)LassoFlags::LHF_CAN_BE_LASSOED_BY_FRIENDLY_PLAYERS, false);
-					PED::SET_PED_LASSO_HOGTIE_FLAG(ped.GetHandle(), (int)LassoFlags::LHF_DISABLE_IN_MP, true);
-					// anti hogtie
-					ENTITY::_SET_ENTITY_CARRYING_FLAG(ped.GetHandle(), (int)CarryingFlags::CARRYING_FLAG_CAN_BE_HOGTIED, false);
-				}
-
-				ped.SetVisible(!g_Invis);
-
-				if (g_Scale != 1.0f)
-					ped.SetScale(g_Scale);
-
-				if (g_Variation > 0)
-					ped.SetVariation(g_Variation);
-
-				// give weapon if armed is enabled and ped is not an animal
-				if (g_Armed && !ped.IsAnimal())
-				{
-					auto weapon = GetDefaultWeaponForPed(g_PedModelBuffer);
-					WEAPON::GIVE_WEAPON_TO_PED(ped.GetHandle(), Joaat(weapon), 100, true, false, 0, true, 0.5f, 1.0f, 0x2CD419DC, true, 0.0f, false);
-					WEAPON::SET_PED_INFINITE_AMMO(ped.GetHandle(), true, Joaat(weapon));
-					ScriptMgr::Yield();
-					WEAPON::SET_CURRENT_PED_WEAPON(ped.GetHandle(), "WEAPON_UNARMED"_J, true, 0, false, false);
-				}
-
-				ped.SetConfigFlag(PedConfigFlag::IsTranquilized, g_Sedated);
-
-				g_SpawnedPeds.push_back(ped);
-
-				if (g_Companion)
-				{
-					int group = PED::GET_PED_GROUP_INDEX(YimMenu::Self::GetPed().GetHandle());
-					if (!PED::DOES_GROUP_EXIST(group))
-					{
-						group = PED::CREATE_GROUP(0);
-						PED::SET_PED_AS_GROUP_LEADER(YimMenu::Self::GetPed().GetHandle(), group, false);
-					}
-
-					ENTITY::SET_ENTITY_AS_MISSION_ENTITY(ped.GetHandle(), true, true);
-					PED::SET_PED_AS_GROUP_MEMBER(ped.GetHandle(), group);
-					PED::SET_PED_CAN_BE_TARGETTED_BY_PLAYER(ped.GetHandle(), YimMenu::Self::GetPlayer().GetId(), false);
-					PED::SET_PED_RELATIONSHIP_GROUP_HASH(
-					    ped.GetHandle(), PED::GET_PED_RELATIONSHIP_GROUP_HASH(YimMenu::Self::GetPed().GetHandle()));
-
-					PED::SET_GROUP_FORMATION(PED::GET_PED_GROUP_INDEX(ped.GetHandle()), g_Formation);
-
-					DECORATOR::DECOR_SET_INT(ped.GetHandle(), "SH_CMP_companion", 2);
-
-					if (ped.IsAnimal())
-					{
-						FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 104, 0.0);
-						FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 105, 0.0);
-						FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 10, 0.0);
-						FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 146, 0.0);
-						FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 113, 0.0);
-						FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 114, 0.0);
-						FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 115, 0.0);
-						FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 116, 0.0);
-						FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 117, 0.0);
-						FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 118, 0.0);
-						FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 119, 0.0);
-						FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 111, 0.0);
-						FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 107, 0.0);
-					}
-					PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped.GetHandle(), false);
-
-					ped.SetConfigFlag(PedConfigFlag::_0x16A14D9A, false);
-					ped.SetConfigFlag(PedConfigFlag::_DisableHorseFleeILO, true);
-					ped.SetConfigFlag(PedConfigFlag::_0x74F95F2E, false);
-					ped.SetConfigFlag(PedConfigFlag::Avoidance_Ignore_All, false);
-					ped.SetConfigFlag(PedConfigFlag::DisableShockingEvents, false);
-					ped.SetConfigFlag(PedConfigFlag::DisablePedAvoidance, false);
-					ped.SetConfigFlag(PedConfigFlag::DisableExplosionReactions, false);
-					ped.SetConfigFlag(PedConfigFlag::DisableEvasiveStep, false);
-					ped.SetConfigFlag(PedConfigFlag::DisableHorseGunshotFleeResponse, true);
-
-					auto blip = MAP::BLIP_ADD_FOR_ENTITY("BLIP_STYLE_COMPANION"_J, ped.GetHandle());
-					MAP::BLIP_ADD_MODIFIER(blip, "BLIP_MODIFIER_COMPANION_DOG"_J);
-				}
-			});
+			SpawnPed(g_PedModelBuffer, g_Variation, true); // true = give weapon if armed is enabled
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Set Model"))
