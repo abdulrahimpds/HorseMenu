@@ -254,8 +254,22 @@ namespace YimMenu::Submenus
 		ImGui::Text("This will contain horse breeds and spawning options.");
 	}
 
-	// legendary animals data structure
+	// animal data structures
 	struct LegendaryAnimal
+	{
+		std::string name;
+		std::string model;
+		int variation;
+	};
+
+	struct RegularAnimal
+	{
+		std::string name;
+		std::string model;
+		int variation;
+	};
+
+	struct Dog
 	{
 		std::string name;
 		std::string model;
@@ -272,7 +286,7 @@ namespace YimMenu::Submenus
 		{"Buck", "a_c_buck_01", 3},
 		{"Tatanka Bison", "a_c_buffalo_tatanka_01", 0},
 		{"White Bison", "a_c_buffalo_01", 4},
-		{"Cougar", "a_c_cougar_01", 5},
+		{"Legendary Cougar", "a_c_cougar_01", 5},
 		{"Coyote", "a_c_coyote_01", 1},
 		{"Elk", "a_c_elk_01", 1},
 		{"Fox", "a_c_fox_01", 3},
@@ -324,6 +338,180 @@ namespace YimMenu::Submenus
 		{"Moonstone Wolf", "MP_A_C_Wolf_01", 2}
 	};
 
+	// regular animals data (parsed from animals.txt - lines 1-304)
+	static std::vector<RegularAnimal> g_RegularAnimals = {
+		{"American Alligator", "A_C_Alligator_01", 0},
+		{"American Alligator (small)", "A_C_Alligator_03", 0},
+		{"Nine-Banded Armadillo", "A_C_Armadillo_01", 0},
+		{"American Badger", "A_C_Badger_01", 0},
+		{"Little Brown Bat", "A_C_Bat_01", 0},
+		{"American Black Bear", "A_C_BearBlack_01", 0},
+		{"Grizzly Bear", "A_C_Bear_01", 0},
+		{"North American Beaver", "A_C_Beaver_01", 0},
+		{"Blue Jay", "A_C_BlueJay_01", 0},
+		{"Wild Boar", "A_C_Boar_01", 0},
+		{"Whitetail Buck", "A_C_Buck_01", 0},
+		{"Whitetail Deer", "A_C_Deer_01", 0},
+		{"American Bison", "A_C_Buffalo_01", 0},
+		{"Angus Bull", "A_C_Bull_01", 0},
+		{"Devon Bull", "A_C_Bull_01", 3},
+		{"Hereford Bull", "A_C_Bull_01", 2},
+		{"American Bullfrog", "A_C_FrogBull_01", 0},
+		{"Northern Cardinal", "A_C_Cardinal_01", 0},
+		{"American Domestic Cat", "A_C_Cat_01", 0},
+		{"Cedar Waxwing", "A_C_CedarWaxwing_01", 0},
+		{"Dominique Chicken", "A_C_Chicken_01", 0},
+		{"Dominique Rooster", "A_C_Rooster_01", 0},
+		{"Java Chicken", "A_C_Chicken_01", 2},
+		{"Java Rooster", "A_C_Rooster_01", 1},
+		{"Leghorn Chicken", "A_C_Chicken_01", 3},
+		{"Leghorn Rooster", "A_C_Rooster_01", 2},
+		{"Greater Prairie Chicken", "A_C_PrairieChicken_01", 0},
+		{"Western Chipmunk", "A_C_Chipmunk_01", 0},
+		{"Californian Condor", "A_C_CaliforniaCondor_01", 0},
+		{"Cougar", "A_C_Cougar_01", 0},
+		{"Double-crested Cormorant", "A_C_Cormorant_01", 0},
+		{"Neotropic Cormorant", "A_C_Cormorant_01", 2},
+		{"Florida Cracker Cow", "A_C_Cow", 0},
+		{"California Valley Coyote", "A_C_Coyote_01", 0},
+		{"Cuban Land Crab", "A_C_Crab_01", 0},
+		{"Red Swamp Crayfish", "A_C_Crawfish_01", 0},
+		{"Whooping Crane", "A_C_CraneWhooping_01", 0},
+		{"Sandhill Crane", "A_C_CraneWhooping_01", 1},
+		{"American Crow", "A_C_Crow_01", 0},
+		{"Standard Donkey", "A_C_Donkey_01", 0},
+		{"Mallard Duck", "A_C_Duck_01", 0},
+		{"Pekin Duck", "A_C_Duck_01", 2},
+		{"Bald Eagle", "A_C_Eagle_01", 0},
+		{"Golden Eagle", "A_C_Eagle_01", 1},
+		{"Reddish Egret", "A_C_Egret_01", 0},
+		{"Little Egret", "A_C_Egret_01", 1},
+		{"Snowy Egret", "A_C_Egret_01", 2},
+		{"Rocky Mountain Bull Elk", "A_C_Elk_01", 0},
+		{"Rocky Mountain Cow Elk", "A_C_Elk_01", 2},
+		{"American Red Fox", "A_C_Fox_01", 0},
+		{"American Gray Fox", "A_C_Fox_01", 1},
+		{"Silver Fox", "A_C_Fox_01", 2},
+		{"Banded Gila Monster", "A_C_GilaMonster_01", 0},
+		{"Alpine Goat", "A_C_Goat_01", 0},
+		{"Canada Goose", "A_C_GooseCanada_01", 0},
+		{"Ferruginous Hawk", "A_C_Hawk_01", 0},
+		{"Red-tailed Hawk", "A_C_Hawk_01", 2},
+		{"Rough-legged Hawk", "A_C_Hawk_01", 1},
+		{"Great Blue Heron", "A_C_Heron_01", 0},
+		{"Tricolored Heron", "A_C_Heron_01", 2},
+		{"Desert Iguana", "A_C_IguanaDesert_01", 0},
+		{"Green Iguana", "A_C_Iguana_01", 0},
+		{"Collared Peccary", "A_C_Javelina_01", 0},
+		{"Lion", "A_C_LionMangy_01", 0},
+		{"Common Loon", "A_C_Loon_01", 0},
+		{"Pacific Loon", "A_C_Loon_01", 2},
+		{"Yellow-billed Loon", "A_C_Loon_01", 1},
+		{"Western Bull Moose", "A_C_Moose_01", 3},
+		{"Western Moose", "A_C_Moose_01", 0},
+		{"Mule", "A_C_HORSEMULE_01", 0},
+		{"American Muskrat", "A_C_Muskrat_01", 0},
+		{"Baltimore Oriole", "A_C_Oriole_01", 0},
+		{"Hooded Oriole", "A_C_Oriole_01", 1},
+		{"Californian Horned Owl", "A_C_Owl_01", 1},
+		{"Coastal Horned Owl", "A_C_Owl_01", 2},
+		{"Great Horned Owl", "A_C_Owl_01", 0},
+		{"Angus Ox", "A_C_Ox_01", 0},
+		{"Devon Ox", "A_C_Ox_01", 2},
+		{"Panther", "A_C_Panther_01", 0},
+		{"Florida Panther", "A_C_Panther_01", 4},
+		{"Carolina Parakeet", "A_C_CarolinaParakeet_01", 0},
+		{"Blue and Yellow Macaw", "A_C_Parrot_01", 0},
+		{"Great Green Macaw", "A_C_Parrot_01", 1},
+		{"Scarlet Macaw", "A_C_Parrot_01", 2},
+		{"American White Pelican", "A_C_Pelican_01", 0},
+		{"Brown Pelican", "A_C_Pelican_01", 1},
+		{"Ring-necked Pheasant", "A_C_Pheasant_01", 0},
+		{"Chinese Ring-necked Pheasant", "A_C_Pheasant_01", 2},
+		{"Berkshire Pig", "A_C_Pig_01", 0},
+		{"Big China Pig", "A_C_Pig_01", 3},
+		{"Old Spot Pig", "A_C_Pig_01", 2},
+		{"Band-tailed Pigeon", "A_C_Pigeon", 2},
+		{"Rock Pigeon", "A_C_Pigeon", 0},
+		{"Virginia Opossum", "A_C_Possum_01", 0},
+		{"American Pronghorn Buck", "A_C_Pronghorn_01", 10},
+		{"American Pronghorn Doe", "A_C_Pronghorn_01", 0},
+		{"Sonoran Pronghorn Buck", "A_C_Pronghorn_01", 13},
+		{"Sonoran Pronghorn Doe", "A_C_Pronghorn_01", 4},
+		{"Baja California Pronghorn Buck", "A_C_Pronghorn_01", 16},
+		{"Baja California Pronghorn Doe", "A_C_Pronghorn_01", 7},
+		{"California Quail", "A_C_Quail_01", 0},
+		{"Sierra Nevada Bighorn Ram", "A_C_BigHornRam_01", 9},
+		{"Sierra Nevada Bighorn Sheep", "A_C_BigHornRam_01", 0},
+		{"Desert Bighorn Ram", "A_C_BigHornRam_01", 16},
+		{"Desert Bighorn Sheep", "A_C_BigHornRam_01", 6},
+		{"Rocky Mountain Bighorn Ram", "A_C_BigHornRam_01", 13},
+		{"Rocky Mountain Bighorn Sheep", "A_C_BigHornRam_01", 3},
+		{"Black-tailed Jackrabbit", "A_C_Rabbit_01", 0},
+		{"North American Raccoon", "A_C_Raccoon_01", 0},
+		{"Black Rat", "A_C_Rat_01", 4},
+		{"Brown Rat", "A_C_Rat_01", 0},
+		{"Western Raven", "A_C_Raven_01", 0},
+		{"Red-footed Booby", "A_C_RedFootedBooby_01", 0},
+		{"American Robin", "A_C_Robin_01", 0},
+		{"Roseate Spoonbill", "A_C_RoseateSpoonbill_01", 0},
+		{"Herring Gull", "A_C_Seagull_01", 0},
+		{"Laughing Gull", "A_C_Seagull_01", 1},
+		{"Ring-billed Gull", "A_C_Seagull_01", 2},
+		{"Merino Sheep", "A_C_Sheep_01", 0},
+		{"Striped Skunk", "A_C_Skunk_01", 0},
+		{"Red Boa Snake", "A_C_SnakeRedBoa_01", 0},
+		{"Rainbow Boa Snake", "A_C_SnakeRedBoa_01", 2},
+		{"Sunglow Boa Snake", "A_C_SnakeRedBoa_01", 1},
+		{"Diamondback Rattlesnake", "A_C_Snake_01", 0},
+		{"Fer-de-Lance Snake", "A_C_SnakeFerDeLance_01", 0},
+		{"Black-tailed Rattlesnake", "A_C_SnakeBlackTailRattle_01", 0},
+		{"Timber Rattlesnake", "A_C_Snake_01", 2},
+		{"Northern Copperhead Snake", "A_C_SnakeFerDeLance_01", 2},
+		{"Southern Copperhead Snake", "A_C_SnakeFerDeLance_01", 1},
+		{"Midland Water Snake", "A_C_SnakeWater_01", 0},
+		{"Cottonmouth Snake", "A_C_SnakeWater_01", 1},
+		{"Northern Water Snake", "A_C_SnakeWater_01", 2},
+		{"Scarlet Tanager Songbird", "A_C_SongBird_01", 1},
+		{"Western Tanager Songbird", "A_C_SongBird_01", 0},
+		{"Eurasian Tree Sparrow", "A_C_Sparrow_01", 3},
+		{"American Tree Sparrow", "A_C_Sparrow_01", 0},
+		{"Golden Crowned Sparrow", "A_C_Sparrow_01", 2},
+		{"American Red Squirrel", "A_C_Squirrel_01", 1},
+		{"Western Gray Squirrel", "A_C_Squirrel_01", 0},
+		{"Black Squirrel", "A_C_Squirrel_01", 2},
+		{"Western Toad", "A_C_Toad_01", 0},
+		{"Sonoran Desert Toad", "A_C_Toad_01", 3},
+		{"Eastern Wild Turkey", "A_C_Turkey_01", 0},
+		{"Rio Grande Wild Turkey", "A_C_TurkeyWild_01", 0},
+		{"Alligator Snapping Turtle", "A_C_TurtleSnapping_01", 0},
+		{"Eastern Turkey Vulture", "A_C_Vulture_01", 4},
+		{"Western Turkey Vulture", "A_C_Vulture_01", 0},
+		{"Gray Wolf", "A_C_Wolf", 0},
+		{"Timber Wolf", "A_C_Wolf_Medium", 0},
+		{"Gray Wolf (small)", "A_C_Wolf_Small", 0},
+		{"Red-bellied Woodpecker", "A_C_Woodpecker_01", 0},
+		{"Pileated Woodpecker", "A_C_Woodpecker_02", 0}
+	};
+
+	// dogs data (parsed from animals.txt - lines 382-408)
+	static std::vector<Dog> g_Dogs = {
+		{"American Foxhound", "A_C_DOGAMERICANFOXHOUND_01", 0},
+		{"Australian Shepherd", "A_C_DOGAUSTRALIANSHEPERD_01", 0},
+		{"Bluetick Coonhound", "A_C_DOGBLUETICKCOONHOUND_01", 0},
+		{"Catahoula Cur", "A_C_DOGCATAHOULACUR_01", 0},
+		{"Ches Bay Retriever", "A_C_DOGCHESBAYRETRIEVER_01", 0},
+		{"Hobo", "A_C_DOGHOBO_01", 0},
+		{"Hound", "A_C_DOGHOUND_01", 0},
+		{"Husky", "A_C_DOGHUSKY_01", 0},
+		{"Labrador", "A_C_DOGLAB_01", 0},
+		{"Lion (dog)", "A_C_DOGLION_01", 0},
+		{"Poodle", "A_C_DOGPOODLE_01", 0},
+		{"Rough Collie", "A_C_DOGCOLLIE_01", 0},
+		{"Rufus", "A_C_DOGRUFUS_01", 0},
+		{"Street", "A_C_DOGSTREET_01", 0}
+	};
+
 	static void SpawnAnimal(const std::string& model, int variation)
 	{
 		FiberPool::Push([model, variation] {
@@ -363,8 +551,7 @@ namespace YimMenu::Submenus
 				ped.SetScale(g_Scale);
 
 			// apply variation for legendary animals
-			if (variation > 0)
-				ped.SetVariation(variation);
+			ped.SetVariation(variation);
 
 			ped.SetConfigFlag(PedConfigFlag::IsTranquilized, g_Sedated);
 
@@ -423,6 +610,81 @@ namespace YimMenu::Submenus
 		});
 	}
 
+	// reusable search helper system for all navigation menus
+	template<typename T>
+	struct SearchHelper
+	{
+		std::string searchBuffer;
+
+		// core search matching function
+		static bool MatchesSearch(const std::string& text, const std::string& searchTerm)
+		{
+			if (searchTerm.empty())
+				return true;
+
+			std::string textLower = text;
+			std::string searchLower = searchTerm;
+			std::transform(textLower.begin(), textLower.end(), textLower.begin(), ::tolower);
+			std::transform(searchLower.begin(), searchLower.end(), searchLower.begin(), ::tolower);
+
+			return textLower.find(searchLower) != std::string::npos;
+		}
+
+		// check if section name matches search
+		static bool SectionMatches(const std::string& sectionName, const std::string& searchTerm)
+		{
+			return MatchesSearch(sectionName, searchTerm);
+		}
+
+		// count matching items in a collection
+		template<typename Container, typename GetNameFunc>
+		static int CountMatches(const Container& items, const std::string& searchTerm, GetNameFunc getName)
+		{
+			if (searchTerm.empty())
+				return static_cast<int>(items.size());
+
+			int count = 0;
+			for (const auto& item : items)
+			{
+				if (MatchesSearch(getName(item), searchTerm))
+					count++;
+			}
+			return count;
+		}
+
+		// render search bar with count display
+		void RenderSearchBar(const std::string& placeholder, int totalItems, int visibleItems)
+		{
+			InputTextWithHint(("##search_" + placeholder).c_str(), placeholder.c_str(), &searchBuffer).Draw();
+
+			if (searchBuffer.empty())
+			{
+				ImGui::Text("Total: %d items", totalItems);
+			}
+			else
+			{
+				ImGui::Text("Found: %d items", visibleItems);
+			}
+
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
+		}
+
+		// check if item should be visible based on search criteria
+		template<typename Item, typename GetNameFunc>
+		bool ShouldShowItem(const Item& item, bool sectionMatches, GetNameFunc getName) const
+		{
+			return sectionMatches || MatchesSearch(getName(item), searchBuffer);
+		}
+	};
+
+	// search instances for each navigation menu
+	static SearchHelper<void> g_AnimalSearch;  // handles both legendary and regular animals
+	static SearchHelper<void> g_HumanSearch;  // placeholder for future use
+	static SearchHelper<void> g_HorseSearch;  // placeholder for future use
+	static SearchHelper<void> g_FishSearch;   // placeholder for future use
+
 	static void RenderAnimalsView()
 	{
 		// back button in top-right corner
@@ -449,35 +711,119 @@ namespace YimMenu::Submenus
 			ImGui::Text(text);
 			ImGui::PopFont();
 
-			// draw centered line (3x text width)
+			// draw centered line (3x text width) using screen coordinates
 			float lineWidth = textSize.x * 3.0f;
 			float linePosX = (contentRegion.x - lineWidth) * 0.5f;
-			ImVec2 cursorPos = ImGui::GetCursorPos();
+
 			ImDrawList* drawList = ImGui::GetWindowDrawList();
 			ImVec2 windowPos = ImGui::GetWindowPos();
+			ImVec2 cursorScreenPos = ImGui::GetCursorScreenPos();
 
+			// use screen coordinates for proper positioning with scrolling
 			drawList->AddLine(
-				ImVec2(windowPos.x + linePosX, windowPos.y + cursorPos.y),
-				ImVec2(windowPos.x + linePosX + lineWidth, windowPos.y + cursorPos.y),
+				ImVec2(windowPos.x + linePosX, cursorScreenPos.y),
+				ImVec2(windowPos.x + linePosX + lineWidth, cursorScreenPos.y),
 				ImGui::GetColorU32(ImGuiCol_Separator), 1.0f);
 
-			ImGui::SetCursorPosY(cursorPos.y + 5);
+			ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
 			ImGui::Spacing();
 		};
 
-		// legendary animals section
-		RenderCenteredSeparator("Legendary Animals");
+		// lambda functions for getting names
+		auto getLegendaryName = [](const LegendaryAnimal& animal) { return animal.name; };
+		auto getRegularName = [](const RegularAnimal& animal) { return animal.name; };
+		auto getDogName = [](const Dog& dog) { return dog.name; };
 
-		// legendary animals spawn buttons
-		for (const auto& animal : g_LegendaryAnimals)
+		// check section matches
+		bool legendaryMatches = g_AnimalSearch.SectionMatches("Legendary Animals", g_AnimalSearch.searchBuffer) ||
+		                       g_AnimalSearch.SectionMatches("Legendary", g_AnimalSearch.searchBuffer);
+		bool regularMatches = g_AnimalSearch.SectionMatches("Regular Animals", g_AnimalSearch.searchBuffer) ||
+		                     g_AnimalSearch.SectionMatches("Animals", g_AnimalSearch.searchBuffer);
+		bool dogMatches = g_AnimalSearch.SectionMatches("Dogs", g_AnimalSearch.searchBuffer);
+
+		// count visible animals in each section
+		int legendaryVisible = legendaryMatches ? static_cast<int>(g_LegendaryAnimals.size()) :
+		                      g_AnimalSearch.CountMatches(g_LegendaryAnimals, g_AnimalSearch.searchBuffer, getLegendaryName);
+		int regularVisible = regularMatches ? static_cast<int>(g_RegularAnimals.size()) :
+		                    g_AnimalSearch.CountMatches(g_RegularAnimals, g_AnimalSearch.searchBuffer, getRegularName);
+		int dogVisible = dogMatches ? static_cast<int>(g_Dogs.size()) :
+		                g_AnimalSearch.CountMatches(g_Dogs, g_AnimalSearch.searchBuffer, getDogName);
+
+		// determine section visibility
+		bool showLegendarySection = legendaryMatches || (legendaryVisible > 0);
+		bool showRegularSection = regularMatches || (regularVisible > 0);
+		bool showDogSection = dogMatches || (dogVisible > 0);
+
+		// calculate totals
+		int totalAnimals = static_cast<int>(g_LegendaryAnimals.size() + g_RegularAnimals.size() + g_Dogs.size());
+		int totalVisible = legendaryVisible + regularVisible + dogVisible;
+
+		// render search bar with count
+		g_AnimalSearch.RenderSearchBar("Search Animals", totalAnimals, totalVisible);
+
+		// legendary animals section
+		if (showLegendarySection)
 		{
-			if (ImGui::Button(animal.name.c_str(), ImVec2(-1, 25)))
+			RenderCenteredSeparator("Legendary Animals");
+
+			for (const auto& animal : g_LegendaryAnimals)
 			{
-				SpawnAnimal(animal.model, animal.variation);
+				if (g_AnimalSearch.ShouldShowItem(animal, legendaryMatches, getLegendaryName))
+				{
+					if (ImGui::Button(animal.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(animal.model, animal.variation);
+					}
+				}
 			}
+
+			ImGui::Spacing();
 		}
 
-		ImGui::Spacing();
+		// regular animals section
+		if (showRegularSection)
+		{
+			RenderCenteredSeparator("Regular Animals");
+
+			for (const auto& animal : g_RegularAnimals)
+			{
+				if (g_AnimalSearch.ShouldShowItem(animal, regularMatches, getRegularName))
+				{
+					if (ImGui::Button(animal.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(animal.model, animal.variation);
+					}
+				}
+			}
+
+			ImGui::Spacing();
+		}
+
+		// dogs section
+		if (showDogSection)
+		{
+			RenderCenteredSeparator("Dogs");
+
+			for (const auto& dog : g_Dogs)
+			{
+				if (g_AnimalSearch.ShouldShowItem(dog, dogMatches, getDogName))
+				{
+					if (ImGui::Button(dog.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(dog.model, dog.variation);
+					}
+				}
+			}
+
+			ImGui::Spacing();
+		}
+
+		// show helpful message when no matches found
+		if (!showLegendarySection && !showRegularSection && !showDogSection && !g_AnimalSearch.searchBuffer.empty())
+		{
+			ImGui::Text("No animals or sections match your search");
+			ImGui::Text("Try searching for: 'legendary', 'regular animals', 'dogs', 'bear', 'wolf', etc.");
+		}
 	}
 
 	static void RenderFishesView()
