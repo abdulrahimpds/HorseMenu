@@ -1364,7 +1364,37 @@ namespace YimMenu::Submenus
 		ImGui::SameLine();
 		if (ImGui::Button("Story Gang"))
 		{
-			// story gang functionality will be implemented later
+			// story gang members with their specific variations
+			struct StoryGangMember
+			{
+				std::string model;
+				int variation;
+			};
+
+			std::vector<StoryGangMember> storyGang = {
+				{"cs_dutch", 4},                    // Dutch van der Linde
+				{"player_three", 26},               // John Marston
+				{"cs_hoseamatthews", 8},            // Hosea Matthews
+				{"cs_billwilliamson", 1},           // Bill Williamson
+				{"cs_javierescuella", 17},          // Javier Escuella
+				{"cs_micahbell", 1},                // Micah Bell
+				{"cs_mrsadler", 17},                // Sadie Adler
+				{"cs_charlessmith", 15},            // Charles Smith
+				{"cs_mollyoshea", 5},               // Molly O'Shea
+				{"cs_susangrimshaw", 7},            // Susan Grimshaw
+				{"cs_abigailroberts", 3},           // Abigail Roberts Marston
+				{"cs_marybethgaskill", 5},          // Mary-Beth Gaskill
+				{"cs_karenjones", 9},               // Karen Jones
+				{"cs_uncle", 2},                    // Uncle
+				{"cs_seanmacguire", 0}              // Sean
+			};
+
+			// spawn each gang member using the SpawnPed helper function
+			// note: variations are fixed and won't be affected by the global variation setting
+			for (const auto& member : storyGang)
+			{
+				SpawnPed(member.model, member.variation, true); // true = give weapon if armed is enabled
+			}
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Cleanup Peds"))
