@@ -1383,10 +1383,10 @@ namespace YimMenu::Submenus
 				{"cs_mollyoshea", 5},               // Molly O'Shea
 				{"cs_susangrimshaw", 7},            // Susan Grimshaw
 				{"cs_abigailroberts", 3},           // Abigail Roberts Marston
-				{"cs_marybethgaskill", 5},          // Mary-Beth Gaskill
-				{"cs_karenjones", 9},               // Karen Jones
+				{"cs_marybeth", 5},                 // Mary-Beth Gaskill
+				{"cs_karen", 9},                    // Karen Jones
 				{"cs_uncle", 2},                    // Uncle
-				{"cs_seanmacguire", 0}              // Sean
+				{"cs_sean", 0}                      // Sean
 			};
 
 			// spawn each gang member using the SpawnPed helper function
