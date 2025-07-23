@@ -721,43 +721,53 @@ namespace YimMenu::Submenus
 					PED::SET_PED_AS_GROUP_LEADER(YimMenu::Self::GetPed().GetHandle(), group, false);
 				}
 
-				// === COMBAT ATTRIBUTES (ALL from Rampage Trainer) ===
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 0, true);   // CA_USE_COVER - enable
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 1, true);   // CA_USE_VEHICLE - enable
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 2, true);   // CA_DO_DRIVEBYS - enable
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 3, true);   // CA_LEAVE_VEHICLES - enable
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 4, true);   // CA_STRAFE_BASED_ON_TARGET_PROXIMITY - enable
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 5, false);   // CA_ALWAYS_FIGHT - enable
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 8, true);   // CA_ALLOW_STRAFE_BREAKUP - enable
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 24, true);  // CA_USE_PROXIMITY_FIRING_RATE - enable
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 27, true);  // CA_PERFECT_ACCURACY - enable
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 31, true);  // CA_MAINTAIN_MIN_DISTANCE_TO_TARGET - enable
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 38, true);  // CA_DISABLE_BULLET_REACTIONS - enable
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 46, true);  // CA_CAN_FIGHT_ARMED_PEDS_WHEN_NOT_ARMED - enable
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 50, true);  // CA_CAN_CHARGE - enable
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 57, true);  // CA_DISABLE_SEEK_DUE_TO_LINE_OF_SIGHT - enable
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 58, true);  // CA_DISABLE_FLEE_FROM_COMBAT
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 78, true);  // CA_DISABLE_ALL_RANDOMS_FLEE - enable
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 113, true); // CA_USE_INFINITE_CLIPS - enable
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 125, true); // CA_QUIT_WHEN_TARGET_FLEES_INTERACTION_FIGHT - enable
+				// === ENHANCED COMBAT ATTRIBUTES ===
+				// core combat behavior - enable aggressive combat
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 0, true);   // CA_USE_COVER - enable tactical cover usage
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 1, true);   // CA_USE_VEHICLE - enable vehicle combat
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 2, true);   // CA_DO_DRIVEBYS - enable drive-by attacks
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 3, true);   // CA_LEAVE_VEHICLES - enable vehicle exit for combat
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 4, true);   // CA_STRAFE_BASED_ON_TARGET_PROXIMITY - enable tactical movement
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 5, true);   // CA_ALWAYS_FIGHT - enable aggressive combat stance
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 8, true);   // CA_ALLOW_STRAFE_BREAKUP - enable advanced movement
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 21, true);  // CA_CAN_CHASE_TARGET_ON_FOOT - enable pursuit
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 24, true);  // CA_USE_PROXIMITY_FIRING_RATE - enable smart firing
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 27, true);  // CA_PERFECT_ACCURACY - enable enhanced accuracy
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 31, true);  // CA_MAINTAIN_MIN_DISTANCE_TO_TARGET - enable tactical positioning
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 38, true);  // CA_DISABLE_BULLET_REACTIONS - reduce flinching
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 41, true);  // CA_CAN_COMMANDEER_VEHICLES - enable vehicle hijacking
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 42, true);  // CA_CAN_FLANK - enable flanking maneuvers
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 46, true);  // CA_CAN_FIGHT_ARMED_PEDS_WHEN_NOT_ARMED - enable unarmed combat
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 50, true);  // CA_CAN_CHARGE - enable charging attacks
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 57, true);  // CA_DISABLE_SEEK_DUE_TO_LINE_OF_SIGHT - ignore LOS limitations
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 58, true);  // CA_DISABLE_FLEE_FROM_COMBAT - never flee from combat
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 78, true);  // CA_DISABLE_ALL_RANDOMS_FLEE - disable all flee behaviors
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 93, true);  // CA_PREFER_MELEE - prefer melee combat for animals
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 113, true); // CA_USE_INFINITE_CLIPS - infinite ammo
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 114, true); // CA_CAN_EXECUTE_TARGET - enable execution moves
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 115, true); // CA_DISABLE_RETREAT_DUE_TO_TARGET_PROXIMITY - never retreat
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 125, true); // CA_QUIT_WHEN_TARGET_FLEES_INTERACTION_FIGHT - continue fighting
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 91, true);  // CA_USE_RANGE_BASED_WEAPON_SELECTION
 
-				// DISABLED attributes
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 6, false);   // CA_FLEE_WHILST_IN_VEHICLE
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 7, false);   // CA_JUST_FOLLOW_VEHICLE
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 9, false);   // CA_WILL_SCAN_FOR_DEAD_PEDS
+				// === DISABLED COMBAT ATTRIBUTES ===
+				// disable flee behaviors - companions never flee
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 6, false);   // CA_FLEE_WHILST_IN_VEHICLE - disable vehicle fleeing
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 7, false);   // CA_JUST_FOLLOW_VEHICLE - disable passive following
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 17, false);  // CA_ALWAYS_FLEE - disable all fleeing
+
+				// disable investigation and passive behaviors
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 9, false);   // CA_WILL_SCAN_FOR_DEAD_PEDS - focus on combat
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 10, false);  // CA_0x793BF941
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 11, false);  // CA_JUST_SEEK_COVER
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 12, false);  // CA_BLIND_FIRE_IN_COVER
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 11, false);  // CA_JUST_SEEK_COVER - don't just hide
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 12, false);  // CA_BLIND_FIRE_IN_COVER - use aimed shots
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 13, false);  // CA_COVER_SEARCH_IN_ARC_AWAY_FROM_TARGET
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 14, false);  // CA_CAN_INVESTIGATE
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 15, false);  // CA_CAN_USE_RADIO
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 14, false);  // CA_CAN_INVESTIGATE - focus on combat
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 15, false);  // CA_CAN_USE_RADIO - no radio calls
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 16, false);  // CA_STRAFE_DUE_TO_BULLET_EVENTS
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 17, false);  // CA_ALWAYS_FLEE
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 18, false);  // CA_0x934F1825
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 19, false);  // CA_0x70F392F0
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 20, false);  // CA_CAN_TAUNT_IN_VEHICLE
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 21, false);  // CA_CAN_CHASE_TARGET_ON_FOOT
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 22, false);  // CA_WILL_DRAG_INJURED_PEDS_TO_SAFETY
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 20, false);  // CA_CAN_TAUNT_IN_VEHICLE - focus on combat
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 22, false);  // CA_WILL_DRAG_INJURED_PEDS_TO_SAFETY - focus on combat
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 23, false);  // CA_0x42843828
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 25, false);  // CA_DISABLE_SECONDARY_TARGET
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 26, false);  // CA_DISABLE_ENTRY_REACTIONS
@@ -770,14 +780,13 @@ namespace YimMenu::Submenus
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 35, false);  // CA_DISABLE_PINNED_DOWN
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 36, false);  // CA_DISABLE_PIN_DOWN_OTHERS
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 37, false);  // CA_OPEN_COMBAT_WHEN_DEFENSIVE_AREA_IS_REACHED
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 39, false);  // CA_CAN_BUST
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 39, false);  // CA_CAN_BUST - no arrests
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 40, false);  // CA_IGNORED_BY_OTHER_PEDS_WHEN_WANTED
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 41, false);  // CA_CAN_COMMANDEER_VEHICLES
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 42, false);  // CA_CAN_FLANK
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 43, false);  // CA_SWITCH_TO_ADVANCE_IF_CANT_FIND_COVER
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 44, false);  // CA_SWITCH_TO_DEFENSIVE_IF_IN_COVER
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 45, false);  // CA_CLEAR_PRIMARY_DEFENSIVE_AREA_WHEN_REACHED
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 47, false);  // CA_ENABLE_TACTICAL_POINTS_WHEN_DEFENSIVE
+				// disable remaining attributes for focused combat behavior
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 48, false);  // CA_DISABLE_COVER_ARC_ADJUSTMENTS
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 49, false);  // CA_USE_ENEMY_ACCURACY_SCALING
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 51, false);  // CA_REMOVE_AREA_SET_WILL_ADVANCE_WHEN_DEFENSIVE_AREA_REACHED
@@ -817,9 +826,7 @@ namespace YimMenu::Submenus
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 88, false);  // CA_0xA265A9FC
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 89, false);  // CA_0xE3FA8ABB
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 90, false);  // CA_0x9AA00FOF
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 91, false);  // CA_USE_RANGE_BASED_WEAPON_SELECTION
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 92, false);  // CA_0x8AF8D68D
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 93, false);  // CA_PREFER_MELEE
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 94, false);  // CA_UNUSED11
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 95, false);  // CA_UNUSED12
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 96, false);  // CA_0x64BBB208
@@ -839,8 +846,6 @@ namespace YimMenu::Submenus
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 110, false); // CA_0x875B82F3
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 111, false); // CA_0x1CB77C49
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 112, false); // CA_0x8EB01547
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 114, false); // CA_CAN_EXECUTE_TARGET
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 115, false); // CA_DISABLE_RETREAT_DUE_TO_TARGET_PROXIMITY
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 116, false); // CA_PREFER_DUAL_WIELD
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 117, false); // CA_WILL_CUT_FREE_HOGTIED_PEDS
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 118, false); // CA_TRY_TO_FORCE_SURRENDER
@@ -860,44 +865,107 @@ namespace YimMenu::Submenus
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 133, false); // CA_DISABLE_BLANK_SHOTS
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 134, false); // CA_0xA78BB3BD
 
+				// === ENHANCED GROUP AND RELATIONSHIP SETUP ===
 				ENTITY::SET_ENTITY_AS_MISSION_ENTITY(ped.GetHandle(), true, true);
 				PED::SET_PED_AS_GROUP_MEMBER(ped.GetHandle(), group);
 				PED::SET_PED_CAN_BE_TARGETTED_BY_PLAYER(ped.GetHandle(), YimMenu::Self::GetPlayer().GetId(), false);
+
+				// === ENHANCED RELATIONSHIP SETUP ===
+				// set companion to same relationship group as player
 				PED::SET_PED_RELATIONSHIP_GROUP_HASH(
 				    ped.GetHandle(), PED::GET_PED_RELATIONSHIP_GROUP_HASH(YimMenu::Self::GetPed().GetHandle()));
 
-				PED::SET_GROUP_FORMATION(PED::GET_PED_GROUP_INDEX(ped.GetHandle()), g_Formation);
+				// ensure positive relationship with player
+				auto playerGroup = PED::GET_PED_RELATIONSHIP_GROUP_HASH(YimMenu::Self::GetPed().GetHandle());
+				auto companionGroup = PED::GET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle());
 
+				// set mutual respect/like relationship
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(2, companionGroup, playerGroup); // LIKE
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(2, playerGroup, companionGroup); // LIKE
+
+				// enhanced group formation and coordination
+				PED::SET_GROUP_FORMATION(PED::GET_PED_GROUP_INDEX(ped.GetHandle()), g_Formation);
+				PED::SET_GROUP_FORMATION_SPACING(PED::GET_PED_GROUP_INDEX(ped.GetHandle()), 1.0f, 1.0f, 1.0f);
+
+				// mark as companion for tracking
 				DECORATOR::DECOR_SET_INT(ped.GetHandle(), "SH_CMP_companion", 2);
 
+				// === ENHANCED ANIMAL-SPECIFIC LOGIC ===
 				if (ped.IsAnimal())
 				{
-					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 104, 0.0);
-					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 105, 0.0);
-					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 10, 0.0);
-					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 146, 0.0);
-					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 113, 0.0);
-					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 114, 0.0);
-					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 115, 0.0);
-					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 116, 0.0);
-					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 117, 0.0);
-					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 118, 0.0);
-					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 119, 0.0);
-					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 111, 0.0);
-					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 107, 0.0);
+					// completely disable all flee behaviors for animals
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 104, 0.0f); // flee_distance_base
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 105, 0.0f); // flee_distance_random
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 10, 0.0f);  // flee_speed_modifier
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 146, 0.0f); // flee_stamina_cost
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 113, 0.0f); // flee_from_gunshot_distance
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 114, 0.0f); // flee_from_explosion_distance
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 115, 0.0f); // flee_from_fire_distance
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 116, 0.0f); // flee_from_predator_distance
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 117, 0.0f); // flee_from_human_distance
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 118, 0.0f); // flee_from_vehicle_distance
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 119, 0.0f); // flee_from_horse_distance
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 111, 0.0f); // flee_threshold
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 107, 0.0f); // general_flee_modifier
+
+					// enhance aggression and combat for animals
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 120, 100.0f); // aggression_level
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 121, 100.0f); // combat_effectiveness
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 122, 0.0f);   // fear_level (no fear)
+					FLOCK::SET_ANIMAL_TUNING_FLOAT_PARAM(ped.GetHandle(), 123, 100.0f); // territorial_behavior
 				}
+
+				// allow dynamic event responses for better AI behavior
 				PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped.GetHandle(), false);
 
-				ped.SetConfigFlag(PedConfigFlag::_0x16A14D9A, false);
-				ped.SetConfigFlag(PedConfigFlag::_DisableHorseFleeILO, true);
-				ped.SetConfigFlag(PedConfigFlag::_0x74F95F2E, false);
-				ped.SetConfigFlag(PedConfigFlag::Avoidance_Ignore_All, false);
-				ped.SetConfigFlag(PedConfigFlag::DisableShockingEvents, false);
-				ped.SetConfigFlag(PedConfigFlag::DisablePedAvoidance, false);
-				ped.SetConfigFlag(PedConfigFlag::DisableExplosionReactions, false);
-				ped.SetConfigFlag(PedConfigFlag::DisableEvasiveStep, false);
-				ped.SetConfigFlag(PedConfigFlag::DisableHorseGunshotFleeResponse, true);
+				// === ENHANCED FLEE ATTRIBUTES - DISABLE ALL FLEE BEHAVIORS ===
+				// disable vehicle-related flee behaviors
+				PED::SET_PED_FLEE_ATTRIBUTES(ped.GetHandle(), 65536, false);   // FA_FORCE_EXIT_VEHICLE - don't force exit
+				PED::SET_PED_FLEE_ATTRIBUTES(ped.GetHandle(), 4194304, false); // FA_DISABLE_ENTER_VEHICLES - allow vehicle use
+				PED::SET_PED_FLEE_ATTRIBUTES(ped.GetHandle(), 1048576, false); // FA_DISABLE_MOUNT_USAGE - allow mount usage
 
+				// set comprehensive flee attributes to disable all flee behaviors
+				PED::SET_PED_FLEE_ATTRIBUTES(ped.GetHandle(), 0, false);       // disable all base flee behaviors
+
+				// === ENHANCED CONFIG FLAGS FOR COMPANIONS ===
+				// core companion behavior flags
+				ped.SetConfigFlag(PedConfigFlag::_0x16A14D9A, false);              // enable normal behavior
+				ped.SetConfigFlag(PedConfigFlag::_DisableHorseFleeILO, true);      // disable horse flee
+				ped.SetConfigFlag(PedConfigFlag::_0x74F95F2E, false);              // enable combat reactions
+				ped.SetConfigFlag(PedConfigFlag::NeverLeavesGroup, true);          // stay with group
+				ped.SetConfigFlag(PedConfigFlag::DisableHorseGunshotFleeResponse, true); // disable gunshot flee
+
+				// enhanced combat and reaction flags
+				ped.SetConfigFlag(PedConfigFlag::CanAttackFriendly, false);        // don't attack friendlies
+				ped.SetConfigFlag(PedConfigFlag::AlwaysRespondToCriesForHelp, true); // respond to help calls
+				ped.SetConfigFlag(PedConfigFlag::TreatAsPlayerDuringTargeting, false); // don't treat as player target
+				ped.SetConfigFlag(PedConfigFlag::CowerInsteadOfFlee, false);       // fight instead of cowering
+				ped.SetConfigFlag(PedConfigFlag::RunFromFiresAndExplosions, false); // don't flee from explosions
+
+				// avoidance and movement flags
+				ped.SetConfigFlag(PedConfigFlag::Avoidance_Ignore_All, false);     // enable smart avoidance
+				ped.SetConfigFlag(PedConfigFlag::DisableShockingEvents, false);    // allow shock reactions
+				ped.SetConfigFlag(PedConfigFlag::DisablePedAvoidance, false);      // enable ped avoidance
+				ped.SetConfigFlag(PedConfigFlag::DisableExplosionReactions, false); // allow explosion reactions
+				ped.SetConfigFlag(PedConfigFlag::DisableEvasiveStep, false);       // enable evasive movement
+				ped.SetConfigFlag(PedConfigFlag::AlwaysSeeApproachingVehicles, true); // enhanced awareness
+				ped.SetConfigFlag(PedConfigFlag::CanDiveAwayFromApproachingVehicles, true); // evasive maneuvers
+
+				// group and relationship flags
+				ped.SetConfigFlag(PedConfigFlag::KeepRelationshipGroupAfterCleanUp, true); // maintain relationships
+				ped.SetConfigFlag(PedConfigFlag::DontEnterVehiclesInPlayersGroup, false); // allow vehicle entry
+
+				// === ENHANCED AI BEHAVIOR SETTINGS ===
+				// enhanced following behavior
+				PED::SET_PED_KEEP_TASK(ped.GetHandle(), true);
+
+				// enhanced combat coordination
+				PED::SET_PED_COMBAT_RANGE(ped.GetHandle(), 2); // medium range combat
+				PED::SET_PED_COMBAT_MOVEMENT(ped.GetHandle(), 2); // aggressive movement
+				PED::SET_PED_COMBAT_ABILITY(ped.GetHandle(), 2); // professional combat ability
+				PED::SET_PED_ACCURACY(ped.GetHandle(), 85); // high accuracy
+
+				// create companion blip for tracking
 				auto blip = MAP::BLIP_ADD_FOR_ENTITY("BLIP_STYLE_COMPANION"_J, ped.GetHandle());
 				MAP::BLIP_ADD_MODIFIER(blip, "BLIP_MODIFIER_COMPANION_DOG"_J);
 			}
