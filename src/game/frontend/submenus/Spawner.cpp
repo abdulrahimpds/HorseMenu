@@ -552,7 +552,7 @@ namespace YimMenu::Submenus
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 2, true);   // CA_DO_DRIVEBYS - enable
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 3, true);   // CA_LEAVE_VEHICLES - enable
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 4, true);   // CA_STRAFE_BASED_ON_TARGET_PROXIMITY - enable
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 5, false);   // CA_ALWAYS_FIGHT - enable
+				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 5, false);   // CA_ALWAYS_FIGHT - disable
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 8, true);   // CA_ALLOW_STRAFE_BREAKUP - enable
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 24, true);  // CA_USE_PROXIMITY_FIRING_RATE - enable
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 31, true);  // CA_MAINTAIN_MIN_DISTANCE_TO_TARGET - enable
