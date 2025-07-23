@@ -1389,12 +1389,97 @@ namespace YimMenu::Submenus
 				{"cs_sean", 0}                      // Sean
 			};
 
-			// spawn each gang member using the SpawnPed helper function
+			// spawn each gang member using SpawnPed helper function
 			// note: variations are fixed and won't be affected by the global variation setting
 			for (const auto& member : storyGang)
 			{
-				SpawnPed(member.model, member.variation, true); // true = give weapon if armed is enabled
+				SpawnPed(member.model, member.variation, true); // use existing helper for all standard functionality
 			}
+
+			// add infinite health/stamina logic to the gang members we just spawned
+			// wait a bit to ensure all gang members are spawned first
+			FiberPool::Push([storyGang] {
+				ScriptMgr::Yield(100ms); // wait for all spawns to complete
+
+				// get the last N peds from the spawned list (where N = gang size)
+				int gangSize = static_cast<int>(storyGang.size());
+				if (g_SpawnedPeds.size() >= gangSize)
+				{
+					// apply infinite health/stamina to the last N spawned peds
+					for (int i = g_SpawnedPeds.size() - gangSize; i < g_SpawnedPeds.size(); i++)
+					{
+						Ped ped = g_SpawnedPeds[i];
+
+						// initial health/stamina fill
+						ped.SetHealth(ped.GetMaxHealth());
+						ped.SetStamina(ped.GetMaxStamina());
+						ATTRIBUTE::_SET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), (int)AttributeCore::ATTRIBUTE_CORE_HEALTH, 100);
+						ATTRIBUTE::_SET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), (int)AttributeCore::ATTRIBUTE_CORE_STAMINA, 100);
+						ATTRIBUTE::_SET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), (int)AttributeCore::ATTRIBUTE_CORE_DEADEYE, 100);
+
+						// continuous maintenance loop for this gang member
+						FiberPool::Push([ped] () mutable {
+							while (ped.IsValid() && !ped.IsDead())
+							{
+								// maintain health bar - same as player logic
+								auto health_bar = ped.GetHealth();
+								if (health_bar < ped.GetMaxHealth())
+									ped.SetHealth(ped.GetMaxHealth());
+
+								// maintain health core - same as player logic
+								auto health_core = ATTRIBUTE::_GET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), (int)AttributeCore::ATTRIBUTE_CORE_HEALTH);
+								if (health_core < 100)
+									ATTRIBUTE::_SET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), (int)AttributeCore::ATTRIBUTE_CORE_HEALTH, 100);
+
+								// maintain stamina bar - same as player logic
+								auto stamina_bar = ped.GetStamina();
+								auto max_stamina = PED::_GET_PED_MAX_STAMINA(ped.GetHandle());
+								if (stamina_bar < max_stamina)
+									PED::_CHANGE_PED_STAMINA(ped.GetHandle(), max_stamina - stamina_bar);
+
+								// maintain stamina core - same as player logic
+								auto stamina_core = ATTRIBUTE::_GET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), (int)AttributeCore::ATTRIBUTE_CORE_STAMINA);
+								if (stamina_core < 100)
+									ATTRIBUTE::_SET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), (int)AttributeCore::ATTRIBUTE_CORE_STAMINA, 100);
+
+								// maintain deadeye core - same as player logic
+								auto deadeye_core = ATTRIBUTE::_GET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), (int)AttributeCore::ATTRIBUTE_CORE_DEADEYE);
+								if (deadeye_core < 100)
+									ATTRIBUTE::_SET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), (int)AttributeCore::ATTRIBUTE_CORE_DEADEYE, 100);
+
+								// maintain never flee attributes - prevent game from resetting them
+								PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 78, true);  // CA_DISABLE_ALL_RANDOMS_FLEE
+								PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 17, false); // CA_ALWAYS_FLEE
+								PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 58, true);  // CA_DISABLE_FLEE_FROM_COMBAT
+
+								// maintain companion relationship - prevent them from forgetting to follow
+								if (g_Companion)
+								{
+									int group = PED::GET_PED_GROUP_INDEX(YimMenu::Self::GetPed().GetHandle());
+									if (PED::DOES_GROUP_EXIST(group))
+									{
+										// refresh group membership
+										PED::SET_PED_AS_GROUP_MEMBER(ped.GetHandle(), group);
+										// refresh group formation
+										PED::SET_GROUP_FORMATION(group, g_Formation);
+										// refresh relationship
+										PED::SET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle(), PED::GET_PED_RELATIONSHIP_GROUP_HASH(YimMenu::Self::GetPed().GetHandle()));
+									}
+								}
+
+								// keep clean - same as player logic
+								PED::_SET_PED_DAMAGE_CLEANLINESS(ped.GetHandle(), (int)PedDamageCleanliness::PED_DAMAGE_CLEANLINESS_PERFECT);
+								PED::CLEAR_PED_WETNESS(ped.GetHandle());
+								PED::CLEAR_PED_ENV_DIRT(ped.GetHandle());
+								PED::CLEAR_PED_BLOOD_DAMAGE(ped.GetHandle());
+								PED::CLEAR_PED_DAMAGE_DECAL_BY_ZONE(ped.GetHandle(), 10, "ALL");
+
+								ScriptMgr::Yield(1000ms); // check every 1 second - less aggressive to prevent AI interference
+							}
+						});
+					}
+				}
+			});
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Cleanup Peds"))
