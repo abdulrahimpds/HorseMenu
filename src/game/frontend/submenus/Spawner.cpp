@@ -1373,10 +1373,10 @@ namespace YimMenu::Submenus
 
 			std::vector<StoryGangMember> storyGang = {
 				{"cs_dutch", 4},                    // Dutch van der Linde
-				{"player_three", 26},               // John Marston
+				{"cs_johnmarston", 6},              // John Marston
 				{"cs_hoseamatthews", 8},            // Hosea Matthews
 				{"cs_billwilliamson", 1},           // Bill Williamson
-				{"cs_javierescuella", 17},          // Javier Escuella
+				{"cs_javierescuella", 20},          // Javier Escuella
 				{"cs_micahbell", 1},                // Micah Bell
 				{"cs_mrsadler", 17},                // Sadie Adler
 				{"cs_charlessmith", 15},            // Charles Smith
@@ -1464,6 +1464,38 @@ namespace YimMenu::Submenus
 										PED::SET_GROUP_FORMATION(group, g_Formation);
 										// refresh relationship
 										PED::SET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle(), PED::GET_PED_RELATIONSHIP_GROUP_HASH(YimMenu::Self::GetPed().GetHandle()));
+
+										// additional companion maintenance - prevent AI override
+										PED::SET_PED_CAN_BE_TARGETTED_BY_PLAYER(ped.GetHandle(), YimMenu::Self::GetPlayer().GetId(), false);
+										PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped.GetHandle(), false);
+
+										// refresh companion config flags
+										ped.SetConfigFlag(PedConfigFlag::_0x16A14D9A, false);
+										ped.SetConfigFlag(PedConfigFlag::_DisableHorseFleeILO, true);
+										ped.SetConfigFlag(PedConfigFlag::_0x74F95F2E, false);
+										ped.SetConfigFlag(PedConfigFlag::Avoidance_Ignore_All, false);
+										ped.SetConfigFlag(PedConfigFlag::DisableShockingEvents, false);
+										ped.SetConfigFlag(PedConfigFlag::DisablePedAvoidance, false);
+										ped.SetConfigFlag(PedConfigFlag::DisableExplosionReactions, false);
+										ped.SetConfigFlag(PedConfigFlag::DisableEvasiveStep, false);
+										ped.SetConfigFlag(PedConfigFlag::DisableHorseGunshotFleeResponse, true);
+
+										// handle stuck/idle peds - check distance and movement
+										Vector3 playerPos = YimMenu::Self::GetPed().GetPosition();
+										Vector3 pedPos = ped.GetPosition();
+										float distance = sqrt(pow(playerPos.x - pedPos.x, 2) + pow(playerPos.y - pedPos.y, 2) + pow(playerPos.z - pedPos.z, 2));
+
+										// if ped is too far away (>30 meters) or seems idle, refresh their task
+										if (distance > 30.0f || (!PED::IS_PED_IN_COMBAT(ped.GetHandle(), 0) && distance > 10.0f))
+										{
+											// clear current tasks and refresh AI
+											TASK::CLEAR_PED_TASKS_IMMEDIATELY(ped.GetHandle(), true, true);
+											PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped.GetHandle(), false);
+											// re-assign to group to trigger follow behavior
+											PED::SET_PED_AS_GROUP_MEMBER(ped.GetHandle(), group);
+
+											TASK::TASK_FOLLOW_TO_OFFSET_OF_ENTITY(ped.GetHandle(), YimMenu::Self::GetPed().GetHandle(), 0.0f, 0.0f, 0.0f, 1.0f, -1, 2.5f, true, false, false, false, false, false);
+										}
 									}
 								}
 
