@@ -687,7 +687,21 @@ namespace YimMenu::Submenus
 
 				// === RELATIONSHIPS & HOSTILITY ===
 				// set NO_RELATIONSHIP as requested (but NOT for Story Gang members)
-				if (!isStoryGang)
+				if (isStoryGang)
+				{
+					// mark as Story Gang member for maintenance loop
+					DECORATOR::DECOR_SET_INT(ped.GetHandle(), "SH_STORY_GANG", 1);
+
+					// story gang relationship setup
+					Hash storyGangRelationshipGroup = "REL_GANG_DUTCHS"_J; // use Dutch's gang relationship group
+
+					// set up shared gang relationships (companion mode can override this)
+					PED::SET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle(), storyGangRelationshipGroup);
+
+					// make gang members friendly with each other (critical for preventing infighting)
+					PED::SET_RELATIONSHIP_BETWEEN_GROUPS(0, storyGangRelationshipGroup, storyGangRelationshipGroup);
+				}
+				else
 				{
 					PED::SET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle(), Joaat("NO_RELATIONSHIP"));
 				}
@@ -1484,6 +1498,9 @@ namespace YimMenu::Submenus
 								PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 17, false); // CA_ALWAYS_FLEE
 								PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 58, true);  // CA_DISABLE_FLEE_FROM_COMBAT
 
+								// check if this is a Story Gang member for special handling
+								bool isStoryGangMember = DECORATOR::DECOR_EXIST_ON(ped.GetHandle(), "SH_STORY_GANG");
+
 								// maintain companion relationship - prevent them from forgetting to follow
 								if (g_Companion)
 								{
@@ -1494,9 +1511,6 @@ namespace YimMenu::Submenus
 										PED::SET_PED_AS_GROUP_MEMBER(ped.GetHandle(), group);
 										// refresh group formation
 										PED::SET_GROUP_FORMATION(group, g_Formation);
-
-										// check if this is a Story Gang member
-										bool isStoryGangMember = DECORATOR::DECOR_EXIST_ON(ped.GetHandle(), "SH_STORY_GANG");
 
 										// refresh relationship (companion mode can override relationships)
 										PED::SET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle(), PED::GET_PED_RELATIONSHIP_GROUP_HASH(YimMenu::Self::GetPed().GetHandle()));
@@ -1542,7 +1556,24 @@ namespace YimMenu::Submenus
 									}
 								}
 
-								// keep clean - same as player logic
+								// === STORY GANG SPECIAL MAINTENANCE ===
+								// preserve Story Gang attributes regardless of companion mode
+								if (isStoryGangMember)
+								{
+									// maintain 95% accuracy for Story Gang members
+									PED::SET_PED_ACCURACY(ped.GetHandle(), 95);
+
+									// maintain Story Gang relationships when not in companion mode
+									if (!g_Companion)
+									{
+										Hash storyGangRelationshipGroup = "REL_GANG_DUTCHS"_J;
+										PED::SET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle(), storyGangRelationshipGroup);
+										PED::SET_RELATIONSHIP_BETWEEN_GROUPS(0, storyGangRelationshipGroup, storyGangRelationshipGroup);
+									}
+								}
+
+								// === KEEP CLEAN LOGIC ===
+								// apply to all spawned peds (not just companions)
 								PED::_SET_PED_DAMAGE_CLEANLINESS(ped.GetHandle(), (int)PedDamageCleanliness::PED_DAMAGE_CLEANLINESS_PERFECT);
 								PED::CLEAR_PED_WETNESS(ped.GetHandle());
 								PED::CLEAR_PED_ENV_DIRT(ped.GetHandle());
