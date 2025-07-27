@@ -1428,12 +1428,18 @@ namespace YimMenu::Submenus
 			}
 
 			// add infinite health/stamina logic to the gang members we just spawned
-			// wait a bit to ensure all gang members are spawned first
+			// wait until all gang members are actually spawned
 			FiberPool::Push([storyGang] {
-				ScriptMgr::Yield(100ms); // wait for all spawns to complete
-
-				// get the last N peds from the spawned list (where N = gang size)
 				int gangSize = static_cast<int>(storyGang.size());
+
+				// wait until all gang members are spawned (with timeout)
+				int timeout = 0;
+				while (g_SpawnedPeds.size() < gangSize && timeout < 100) // max 10 seconds
+				{
+					ScriptMgr::Yield(100ms);
+					timeout++;
+				}
+
 				if (g_SpawnedPeds.size() >= gangSize)
 				{
 					// apply infinite health/stamina to the last N spawned peds
