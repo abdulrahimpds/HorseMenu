@@ -513,9 +513,9 @@ namespace YimMenu::Submenus
 	};
 
 	// unified ped spawning function - used by all spawn buttons
-	static void SpawnPed(const std::string& model, int variation, bool giveWeapon = false)
+	static void SpawnPed(const std::string& model, int variation, bool giveWeapon = false, bool isStoryGang = false)
 	{
-		FiberPool::Push([model, variation, giveWeapon] {
+		FiberPool::Push([model, variation, giveWeapon, isStoryGang] {
 			auto ped = Ped::Create(Joaat(model), Self::GetPed().GetPosition());
 
 			if (!ped)
@@ -686,8 +686,11 @@ namespace YimMenu::Submenus
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 134, false); // CA_0xA78BB3BD
 
 				// === RELATIONSHIPS & HOSTILITY ===
-				// set NO_RELATIONSHIP as requested
-				PED::SET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle(), Joaat("NO_RELATIONSHIP"));
+				// set NO_RELATIONSHIP as requested (but NOT for Story Gang members)
+				if (!isStoryGang)
+				{
+					PED::SET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle(), Joaat("NO_RELATIONSHIP"));
+				}
 			}
 
 			ped.SetVisible(!g_Invis);
@@ -871,7 +874,7 @@ namespace YimMenu::Submenus
 				PED::SET_PED_CAN_BE_TARGETTED_BY_PLAYER(ped.GetHandle(), YimMenu::Self::GetPlayer().GetId(), false);
 
 				// === ENHANCED RELATIONSHIP SETUP ===
-				// set companion to same relationship group as player
+				// set companion to same relationship group as player (companion can override relationships)
 				PED::SET_PED_RELATIONSHIP_GROUP_HASH(
 				    ped.GetHandle(), PED::GET_PED_RELATIONSHIP_GROUP_HASH(YimMenu::Self::GetPed().GetHandle()));
 
@@ -883,12 +886,26 @@ namespace YimMenu::Submenus
 				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(2, companionGroup, playerGroup); // LIKE
 				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(2, playerGroup, companionGroup); // LIKE
 
+				// === PRESERVE STORY GANG ATTRIBUTES ===
+				// if this is a Story Gang member, restore their special attributes that companion mode shouldn't override
+				if (isStoryGang)
+				{
+					// restore 95% accuracy (companion mode shouldn't change this)
+					PED::SET_PED_ACCURACY(ped.GetHandle(), 95);
+				}
+
 				// enhanced group formation and coordination
 				PED::SET_GROUP_FORMATION(PED::GET_PED_GROUP_INDEX(ped.GetHandle()), g_Formation);
 				PED::SET_GROUP_FORMATION_SPACING(PED::GET_PED_GROUP_INDEX(ped.GetHandle()), 1.0f, 1.0f, 1.0f);
 
 				// mark as companion for tracking
 				DECORATOR::DECOR_SET_INT(ped.GetHandle(), "SH_CMP_companion", 2);
+
+				// mark Story Gang members for special handling
+				if (isStoryGang)
+				{
+					DECORATOR::DECOR_SET_INT(ped.GetHandle(), "SH_STORY_GANG", 1);
+				}
 
 				// === ENHANCED ANIMAL-SPECIFIC LOGIC ===
 				if (ped.IsAnimal())
@@ -1393,7 +1410,7 @@ namespace YimMenu::Submenus
 			// note: variations are fixed and won't be affected by the global variation setting
 			for (const auto& member : storyGang)
 			{
-				SpawnPed(member.model, member.variation, true); // use existing helper for all standard functionality
+				SpawnPed(member.model, member.variation, true, true); // isStoryGang = true to preserve attributes
 			}
 
 			// add infinite health/stamina logic to the gang members we just spawned
@@ -1416,6 +1433,21 @@ namespace YimMenu::Submenus
 						ATTRIBUTE::_SET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), (int)AttributeCore::ATTRIBUTE_CORE_HEALTH, 100);
 						ATTRIBUTE::_SET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), (int)AttributeCore::ATTRIBUTE_CORE_STAMINA, 100);
 						ATTRIBUTE::_SET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), (int)AttributeCore::ATTRIBUTE_CORE_DEADEYE, 100);
+
+						// set 95% aiming accuracy for all story gang members (regardless of settings)
+						PED::SET_PED_ACCURACY(ped.GetHandle(), 95);
+
+						// mark as Story Gang member for maintenance loop
+						DECORATOR::DECOR_SET_INT(ped.GetHandle(), "SH_STORY_GANG", 1);
+
+						// story gang relationship setup
+						Hash storyGangRelationshipGroup = "REL_GANG_DUTCHS"_J; // use Dutch's gang relationship group
+
+						// set up shared gang relationships (companion mode can override this)
+						PED::SET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle(), storyGangRelationshipGroup);
+
+						// make gang members friendly with each other
+						PED::SET_RELATIONSHIP_BETWEEN_GROUPS(0, storyGangRelationshipGroup, storyGangRelationshipGroup); // friendly with each other
 
 						// continuous maintenance loop for this gang member
 						FiberPool::Push([ped] () mutable {
@@ -1462,8 +1494,19 @@ namespace YimMenu::Submenus
 										PED::SET_PED_AS_GROUP_MEMBER(ped.GetHandle(), group);
 										// refresh group formation
 										PED::SET_GROUP_FORMATION(group, g_Formation);
-										// refresh relationship
+
+										// check if this is a Story Gang member
+										bool isStoryGangMember = DECORATOR::DECOR_EXIST_ON(ped.GetHandle(), "SH_STORY_GANG");
+
+										// refresh relationship (companion mode can override relationships)
 										PED::SET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle(), PED::GET_PED_RELATIONSHIP_GROUP_HASH(YimMenu::Self::GetPed().GetHandle()));
+
+										// preserve Story Gang attributes that companion mode shouldn't override
+										if (isStoryGangMember)
+										{
+											// restore 95% accuracy (companion mode shouldn't change this)
+											PED::SET_PED_ACCURACY(ped.GetHandle(), 95);
+										}
 
 										// additional companion maintenance - prevent AI override
 										PED::SET_PED_CAN_BE_TARGETTED_BY_PLAYER(ped.GetHandle(), YimMenu::Self::GetPlayer().GetId(), false);
