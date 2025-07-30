@@ -2701,24 +2701,12 @@ namespace YimMenu::Submenus
 	    Submenu::Submenu("Spawners")
 	{
 		auto main                = std::make_shared<Category>("Main");
-		auto peds                = std::make_shared<Category>("Peds");
+		auto vehicle             = std::make_shared<Category>("Vehicle");
 		auto vehicleSpawnerGroup = std::make_shared<Group>("Vehicle Spawner");
 		auto trainSpawnerGroup   = std::make_shared<Group>("Train Spawner");
 
-		// vehicle and train spawners remain in main category
-		vehicleSpawnerGroup->AddItem(std::make_shared<ImGuiItem>([] {
-			RenderVehicleSpawnerMenu();
-		}));
-
-		trainSpawnerGroup->AddItem(std::make_shared<ImGuiItem>([] {
-			RenderTrainsMenu();
-		}));
-
-		main->AddItem(vehicleSpawnerGroup);
-		main->AddItem(trainSpawnerGroup);
-
-		// peds category with nested navigation
-		peds->AddItem(std::make_shared<ImGuiItem>([] {
+		// main category with nested navigation (formerly peds)
+		main->AddItem(std::make_shared<ImGuiItem>([] {
 			if (g_InPedDatabase)
 			{
 				RenderPedDatabaseView();
@@ -2745,7 +2733,19 @@ namespace YimMenu::Submenus
 			}
 		}));
 
+		// vehicle and train spawners in vehicle category
+		vehicleSpawnerGroup->AddItem(std::make_shared<ImGuiItem>([] {
+			RenderVehicleSpawnerMenu();
+		}));
+
+		trainSpawnerGroup->AddItem(std::make_shared<ImGuiItem>([] {
+			RenderTrainsMenu();
+		}));
+
+		vehicle->AddItem(vehicleSpawnerGroup);
+		vehicle->AddItem(trainSpawnerGroup);
+
 		AddCategory(std::move(main));
-		AddCategory(std::move(peds));
+		AddCategory(std::move(vehicle));
 	}
 }
