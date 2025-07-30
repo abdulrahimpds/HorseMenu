@@ -212,305 +212,80 @@ namespace YimMenu::Submenus
 		}
 	}
 
-	static void RenderHumansView()
+	// reusable search helper system for all navigation menus
+	template<typename T>
+	struct SearchHelper
 	{
-		// back button in top-right corner
-		ImVec2 windowSize = ImGui::GetContentRegionAvail();
-		ImVec2 originalPos = ImGui::GetCursorPos();
+		std::string searchBuffer;
 
-		ImGui::SetCursorPos(ImVec2(windowSize.x - 30, 5));
-		if (ImGui::Button("X", ImVec2(25, 25)))
+		// core search matching function
+		static bool MatchesSearch(const std::string& text, const std::string& searchTerm)
 		{
-			g_InHumans = false;
+			if (searchTerm.empty())
+				return true;
+
+			std::string textLower = text;
+			std::string searchLower = searchTerm;
+			std::transform(textLower.begin(), textLower.end(), textLower.begin(), ::tolower);
+			std::transform(searchLower.begin(), searchLower.end(), searchLower.begin(), ::tolower);
+
+			return textLower.find(searchLower) != std::string::npos;
 		}
 
-		// reset cursor to original position and add some top margin
-		ImGui::SetCursorPos(ImVec2(originalPos.x, originalPos.y + 35));
-
-		// placeholder content for humans
-		ImGui::Text("Humans - Coming Soon");
-		ImGui::Separator();
-		ImGui::Text("This will contain human ped categories and spawning options.");
-	}
-
-	static void RenderHorsesView()
-	{
-		// back button in top-right corner
-		ImVec2 windowSize = ImGui::GetContentRegionAvail();
-		ImVec2 originalPos = ImGui::GetCursorPos();
-
-		ImGui::SetCursorPos(ImVec2(windowSize.x - 30, 5));
-		if (ImGui::Button("X", ImVec2(25, 25)))
+		// check if section name matches search
+		static bool SectionMatches(const std::string& sectionName, const std::string& searchTerm)
 		{
-			g_InHorses = false;
+			return MatchesSearch(sectionName, searchTerm);
 		}
 
-		// reset cursor to original position and add some top margin
-		ImGui::SetCursorPos(ImVec2(originalPos.x, originalPos.y + 35));
+		// count matching items in a collection
+		template<typename Container, typename GetNameFunc>
+		static int CountMatches(const Container& items, const std::string& searchTerm, GetNameFunc getName)
+		{
+			if (searchTerm.empty())
+				return static_cast<int>(items.size());
 
-		// placeholder content for horses
-		ImGui::Text("Horses - Coming Soon");
-		ImGui::Separator();
-		ImGui::Text("This will contain horse breeds and spawning options.");
-	}
+			int count = 0;
+			for (const auto& item : items)
+			{
+				if (MatchesSearch(getName(item), searchTerm))
+					count++;
+			}
+			return count;
+		}
 
-	// animal data structures
-	struct LegendaryAnimal
-	{
-		std::string name;
-		std::string model;
-		int variation;
+		// render search bar with count display
+		void RenderSearchBar(const std::string& placeholder, int totalItems, int visibleItems)
+		{
+			InputTextWithHint(("##search_" + placeholder).c_str(), placeholder.c_str(), &searchBuffer).Draw();
+
+			if (searchBuffer.empty())
+			{
+				ImGui::Text("Total: %d items", totalItems);
+			}
+			else
+			{
+				ImGui::Text("Found: %d items", visibleItems);
+			}
+
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
+		}
+
+		// check if item should be visible based on search criteria
+		template<typename Item, typename GetNameFunc>
+		bool ShouldShowItem(const Item& item, bool sectionMatches, GetNameFunc getName) const
+		{
+			return sectionMatches || MatchesSearch(getName(item), searchBuffer);
+		}
 	};
 
-	struct RegularAnimal
-	{
-		std::string name;
-		std::string model;
-		int variation;
-	};
-
-	struct Dog
-	{
-		std::string name;
-		std::string model;
-		int variation;
-	};
-
-	// legendary animals data (parsed from animals.txt)
-	static std::vector<LegendaryAnimal> g_LegendaryAnimals = {
-		{"Bull Gator", "a_c_alligator_02", 0},
-		{"Bharati Grizzly Bear", "a_c_bear_01", 1},
-		{"Beaver", "a_c_beaver_01", 1},
-		{"Big Horn Ram", "a_c_bighornram_01", 12},
-		{"Boar", "a_c_boarlegendary_01", 0},
-		{"Buck", "a_c_buck_01", 3},
-		{"Tatanka Bison", "a_c_buffalo_tatanka_01", 0},
-		{"White Bison", "a_c_buffalo_01", 4},
-		{"Legendary Cougar", "a_c_cougar_01", 5},
-		{"Coyote", "a_c_coyote_01", 1},
-		{"Elk", "a_c_elk_01", 1},
-		{"Fox", "a_c_fox_01", 3},
-		{"Moose", "a_c_moose_01", 6},
-		{"Giaguaro Panther", "a_c_panther_01", 1},
-		{"Pronghorn", "a_c_pronghorn_01", 1},
-		{"Wolf", "a_c_wolf", 3},
-		{"Teca Gator", "MP_A_C_Alligator_01", 0},
-		{"Sun Gator", "MP_A_C_Alligator_01", 1},
-		{"Banded Gator", "MP_A_C_Alligator_01", 2},
-		{"Owiza Bear", "MP_A_C_Bear_01", 1},
-		{"Ridgeback Spirit Bear", "MP_A_C_Bear_01", 2},
-		{"Golden Spirit Bear", "MP_A_C_Bear_01", 3},
-		{"Zizi Beaver", "MP_A_C_Beaver_01", 0},
-		{"Moon Beaver", "MP_A_C_Beaver_01", 1},
-		{"Night Beaver", "MP_A_C_Beaver_01", 2},
-		{"Gabbro Horn Ram", "MP_A_C_BigHornRam_01", 0},
-		{"Chalk Horn Ram", "MP_A_C_BigHornRam_01", 1},
-		{"Rutile Horn Ram", "MP_A_C_BigHornRam_01", 2},
-		{"Cogi Boar", "MP_A_C_Boar_01", 0},
-		{"Wakpa Boar", "MP_A_C_Boar_01", 1},
-		{"Icahi Boar", "MP_A_C_Boar_01", 2},
-		{"Mud Runner Buck", "MP_A_C_Buck_01", 2},
-		{"Snow Buck", "MP_A_C_Buck_01", 3},
-		{"Shadow Buck", "MP_A_C_Buck_01", 4},
-		{"Tatanka Bison (Online)", "MP_A_C_Buffalo_01", 0},
-		{"Winyan Bison", "MP_A_C_Buffalo_01", 1},
-		{"Payta Bison", "MP_A_C_Buffalo_01", 2},
-		{"Iguga Cougar", "MP_A_C_Cougar_01", 0},
-		{"Maza Cougar", "MP_A_C_Cougar_01", 1},
-		{"Sapa Cougar", "MP_A_C_Cougar_01", 2},
-		{"Red Streak Coyote", "MP_A_C_Coyote_01", 0},
-		{"Midnight Paw Coyote", "MP_A_C_Coyote_01", 1},
-		{"Milk Coyote", "MP_A_C_Coyote_01", 2},
-		{"Katata Elk", "MP_A_C_Elk_01", 1},
-		{"Ozula Elk", "MP_A_C_Elk_01", 2},
-		{"Inahme Elk", "MP_A_C_Elk_01", 3},
-		{"Ota Fox", "MP_A_C_Fox_01", 0},
-		{"Marble Fox", "MP_A_C_Fox_01", 1},
-		{"Cross Fox", "MP_A_C_Fox_01", 2},
-		{"Snowflake Moose", "MP_A_C_Moose_01", 1},
-		{"Knight Moose", "MP_A_C_Moose_01", 2},
-		{"Ruddy Moose", "MP_A_C_Moose_01", 3},
-		{"Nightwalker Panther", "MP_A_C_Panther_01", 0},
-		{"Ghost Panther", "MP_A_C_Panther_01", 1},
-		{"Iwakta Panther", "MP_A_C_Panther_01", 2},
-		{"Emerald Wolf", "MP_A_C_Wolf_01", 0},
-		{"Onyx Wolf", "MP_A_C_Wolf_01", 1},
-		{"Moonstone Wolf", "MP_A_C_Wolf_01", 2}
-	};
-
-	// regular animals data (parsed from animals.txt - lines 1-304)
-	static std::vector<RegularAnimal> g_RegularAnimals = {
-		{"American Alligator", "A_C_Alligator_01", 0},
-		{"American Alligator (small)", "A_C_Alligator_03", 0},
-		{"Nine-Banded Armadillo", "A_C_Armadillo_01", 0},
-		{"American Badger", "A_C_Badger_01", 0},
-		{"Little Brown Bat", "A_C_Bat_01", 0},
-		{"American Black Bear", "A_C_BearBlack_01", 0},
-		{"Grizzly Bear", "A_C_Bear_01", 0},
-		{"North American Beaver", "A_C_Beaver_01", 0},
-		{"Blue Jay", "A_C_BlueJay_01", 0},
-		{"Wild Boar", "A_C_Boar_01", 0},
-		{"Whitetail Buck", "A_C_Buck_01", 0},
-		{"Whitetail Deer", "A_C_Deer_01", 0},
-		{"American Bison", "A_C_Buffalo_01", 0},
-		{"Angus Bull", "A_C_Bull_01", 0},
-		{"Devon Bull", "A_C_Bull_01", 3},
-		{"Hereford Bull", "A_C_Bull_01", 2},
-		{"American Bullfrog", "A_C_FrogBull_01", 0},
-		{"Northern Cardinal", "A_C_Cardinal_01", 0},
-		{"American Domestic Cat", "A_C_Cat_01", 0},
-		{"Cedar Waxwing", "A_C_CedarWaxwing_01", 0},
-		{"Dominique Chicken", "A_C_Chicken_01", 0},
-		{"Dominique Rooster", "A_C_Rooster_01", 0},
-		{"Java Chicken", "A_C_Chicken_01", 2},
-		{"Java Rooster", "A_C_Rooster_01", 1},
-		{"Leghorn Chicken", "A_C_Chicken_01", 3},
-		{"Leghorn Rooster", "A_C_Rooster_01", 2},
-		{"Greater Prairie Chicken", "A_C_PrairieChicken_01", 0},
-		{"Western Chipmunk", "A_C_Chipmunk_01", 0},
-		{"Californian Condor", "A_C_CaliforniaCondor_01", 0},
-		{"Cougar", "A_C_Cougar_01", 0},
-		{"Double-crested Cormorant", "A_C_Cormorant_01", 0},
-		{"Neotropic Cormorant", "A_C_Cormorant_01", 2},
-		{"Florida Cracker Cow", "A_C_Cow", 0},
-		{"California Valley Coyote", "A_C_Coyote_01", 0},
-		{"Cuban Land Crab", "A_C_Crab_01", 0},
-		{"Red Swamp Crayfish", "A_C_Crawfish_01", 0},
-		{"Whooping Crane", "A_C_CraneWhooping_01", 0},
-		{"Sandhill Crane", "A_C_CraneWhooping_01", 1},
-		{"American Crow", "A_C_Crow_01", 0},
-		{"Standard Donkey", "A_C_Donkey_01", 0},
-		{"Mallard Duck", "A_C_Duck_01", 0},
-		{"Pekin Duck", "A_C_Duck_01", 2},
-		{"Bald Eagle", "A_C_Eagle_01", 0},
-		{"Golden Eagle", "A_C_Eagle_01", 1},
-		{"Reddish Egret", "A_C_Egret_01", 0},
-		{"Little Egret", "A_C_Egret_01", 1},
-		{"Snowy Egret", "A_C_Egret_01", 2},
-		{"Rocky Mountain Bull Elk", "A_C_Elk_01", 0},
-		{"Rocky Mountain Cow Elk", "A_C_Elk_01", 2},
-		{"American Red Fox", "A_C_Fox_01", 0},
-		{"American Gray Fox", "A_C_Fox_01", 1},
-		{"Silver Fox", "A_C_Fox_01", 2},
-		{"Banded Gila Monster", "A_C_GilaMonster_01", 0},
-		{"Alpine Goat", "A_C_Goat_01", 0},
-		{"Canada Goose", "A_C_GooseCanada_01", 0},
-		{"Ferruginous Hawk", "A_C_Hawk_01", 0},
-		{"Red-tailed Hawk", "A_C_Hawk_01", 2},
-		{"Rough-legged Hawk", "A_C_Hawk_01", 1},
-		{"Great Blue Heron", "A_C_Heron_01", 0},
-		{"Tricolored Heron", "A_C_Heron_01", 2},
-		{"Desert Iguana", "A_C_IguanaDesert_01", 0},
-		{"Green Iguana", "A_C_Iguana_01", 0},
-		{"Collared Peccary", "A_C_Javelina_01", 0},
-		{"Lion", "A_C_LionMangy_01", 0},
-		{"Common Loon", "A_C_Loon_01", 0},
-		{"Pacific Loon", "A_C_Loon_01", 2},
-		{"Yellow-billed Loon", "A_C_Loon_01", 1},
-		{"Western Bull Moose", "A_C_Moose_01", 3},
-		{"Western Moose", "A_C_Moose_01", 0},
-		{"Mule", "A_C_HORSEMULE_01", 0},
-		{"American Muskrat", "A_C_Muskrat_01", 0},
-		{"Baltimore Oriole", "A_C_Oriole_01", 0},
-		{"Hooded Oriole", "A_C_Oriole_01", 1},
-		{"Californian Horned Owl", "A_C_Owl_01", 1},
-		{"Coastal Horned Owl", "A_C_Owl_01", 2},
-		{"Great Horned Owl", "A_C_Owl_01", 0},
-		{"Angus Ox", "A_C_Ox_01", 0},
-		{"Devon Ox", "A_C_Ox_01", 2},
-		{"Panther", "A_C_Panther_01", 0},
-		{"Florida Panther", "A_C_Panther_01", 4},
-		{"Carolina Parakeet", "A_C_CarolinaParakeet_01", 0},
-		{"Blue and Yellow Macaw", "A_C_Parrot_01", 0},
-		{"Great Green Macaw", "A_C_Parrot_01", 1},
-		{"Scarlet Macaw", "A_C_Parrot_01", 2},
-		{"American White Pelican", "A_C_Pelican_01", 0},
-		{"Brown Pelican", "A_C_Pelican_01", 1},
-		{"Ring-necked Pheasant", "A_C_Pheasant_01", 0},
-		{"Chinese Ring-necked Pheasant", "A_C_Pheasant_01", 2},
-		{"Berkshire Pig", "A_C_Pig_01", 0},
-		{"Big China Pig", "A_C_Pig_01", 3},
-		{"Old Spot Pig", "A_C_Pig_01", 2},
-		{"Band-tailed Pigeon", "A_C_Pigeon", 2},
-		{"Rock Pigeon", "A_C_Pigeon", 0},
-		{"Virginia Opossum", "A_C_Possum_01", 0},
-		{"American Pronghorn Buck", "A_C_Pronghorn_01", 10},
-		{"American Pronghorn Doe", "A_C_Pronghorn_01", 0},
-		{"Sonoran Pronghorn Buck", "A_C_Pronghorn_01", 13},
-		{"Sonoran Pronghorn Doe", "A_C_Pronghorn_01", 4},
-		{"Baja California Pronghorn Buck", "A_C_Pronghorn_01", 16},
-		{"Baja California Pronghorn Doe", "A_C_Pronghorn_01", 7},
-		{"California Quail", "A_C_Quail_01", 0},
-		{"Sierra Nevada Bighorn Ram", "A_C_BigHornRam_01", 9},
-		{"Sierra Nevada Bighorn Sheep", "A_C_BigHornRam_01", 0},
-		{"Desert Bighorn Ram", "A_C_BigHornRam_01", 16},
-		{"Desert Bighorn Sheep", "A_C_BigHornRam_01", 6},
-		{"Rocky Mountain Bighorn Ram", "A_C_BigHornRam_01", 13},
-		{"Rocky Mountain Bighorn Sheep", "A_C_BigHornRam_01", 3},
-		{"Black-tailed Jackrabbit", "A_C_Rabbit_01", 0},
-		{"North American Raccoon", "A_C_Raccoon_01", 0},
-		{"Black Rat", "A_C_Rat_01", 4},
-		{"Brown Rat", "A_C_Rat_01", 0},
-		{"Western Raven", "A_C_Raven_01", 0},
-		{"Red-footed Booby", "A_C_RedFootedBooby_01", 0},
-		{"American Robin", "A_C_Robin_01", 0},
-		{"Roseate Spoonbill", "A_C_RoseateSpoonbill_01", 0},
-		{"Herring Gull", "A_C_Seagull_01", 0},
-		{"Laughing Gull", "A_C_Seagull_01", 1},
-		{"Ring-billed Gull", "A_C_Seagull_01", 2},
-		{"Merino Sheep", "A_C_Sheep_01", 0},
-		{"Striped Skunk", "A_C_Skunk_01", 0},
-		{"Red Boa Snake", "A_C_SnakeRedBoa_01", 0},
-		{"Rainbow Boa Snake", "A_C_SnakeRedBoa_01", 2},
-		{"Sunglow Boa Snake", "A_C_SnakeRedBoa_01", 1},
-		{"Diamondback Rattlesnake", "A_C_Snake_01", 0},
-		{"Fer-de-Lance Snake", "A_C_SnakeFerDeLance_01", 0},
-		{"Black-tailed Rattlesnake", "A_C_SnakeBlackTailRattle_01", 0},
-		{"Timber Rattlesnake", "A_C_Snake_01", 2},
-		{"Northern Copperhead Snake", "A_C_SnakeFerDeLance_01", 2},
-		{"Southern Copperhead Snake", "A_C_SnakeFerDeLance_01", 1},
-		{"Midland Water Snake", "A_C_SnakeWater_01", 0},
-		{"Cottonmouth Snake", "A_C_SnakeWater_01", 1},
-		{"Northern Water Snake", "A_C_SnakeWater_01", 2},
-		{"Scarlet Tanager Songbird", "A_C_SongBird_01", 1},
-		{"Western Tanager Songbird", "A_C_SongBird_01", 0},
-		{"Eurasian Tree Sparrow", "A_C_Sparrow_01", 3},
-		{"American Tree Sparrow", "A_C_Sparrow_01", 0},
-		{"Golden Crowned Sparrow", "A_C_Sparrow_01", 2},
-		{"American Red Squirrel", "A_C_Squirrel_01", 1},
-		{"Western Gray Squirrel", "A_C_Squirrel_01", 0},
-		{"Black Squirrel", "A_C_Squirrel_01", 2},
-		{"Western Toad", "A_C_Toad_01", 0},
-		{"Sonoran Desert Toad", "A_C_Toad_01", 3},
-		{"Eastern Wild Turkey", "A_C_Turkey_01", 0},
-		{"Rio Grande Wild Turkey", "A_C_TurkeyWild_01", 0},
-		{"Alligator Snapping Turtle", "A_C_TurtleSnapping_01", 0},
-		{"Eastern Turkey Vulture", "A_C_Vulture_01", 4},
-		{"Western Turkey Vulture", "A_C_Vulture_01", 0},
-		{"Gray Wolf", "A_C_Wolf", 0},
-		{"Timber Wolf", "A_C_Wolf_Medium", 0},
-		{"Gray Wolf (small)", "A_C_Wolf_Small", 0},
-		{"Red-bellied Woodpecker", "A_C_Woodpecker_01", 0},
-		{"Pileated Woodpecker", "A_C_Woodpecker_02", 0}
-	};
-
-	// dogs data (parsed from animals.txt - lines 382-408)
-	static std::vector<Dog> g_Dogs = {
-		{"American Foxhound", "A_C_DOGAMERICANFOXHOUND_01", 0},
-		{"Australian Shepherd", "A_C_DOGAUSTRALIANSHEPERD_01", 0},
-		{"Bluetick Coonhound", "A_C_DOGBLUETICKCOONHOUND_01", 0},
-		{"Catahoula Cur", "A_C_DOGCATAHOULACUR_01", 0},
-		{"Ches Bay Retriever", "A_C_DOGCHESBAYRETRIEVER_01", 0},
-		{"Hobo", "A_C_DOGHOBO_01", 0},
-		{"Hound", "A_C_DOGHOUND_01", 0},
-		{"Husky", "A_C_DOGHUSKY_01", 0},
-		{"Labrador", "A_C_DOGLAB_01", 0},
-		{"Lion (dog)", "A_C_DOGLION_01", 0},
-		{"Poodle", "A_C_DOGPOODLE_01", 0},
-		{"Rough Collie", "A_C_DOGCOLLIE_01", 0},
-		{"Rufus", "A_C_DOGRUFUS_01", 0},
-		{"Street", "A_C_DOGSTREET_01", 0}
-	};
+	// search instances for each navigation menu
+	static SearchHelper<void> g_AnimalSearch;  // handles both legendary and regular animals
+	static SearchHelper<void> g_HumanSearch;  // placeholder for future use
+	static SearchHelper<void> g_HorseSearch;  // placeholder for future use
+	static SearchHelper<void> g_FishSearch;   // placeholder for future use
 
 	// unified ped spawning function - used by all spawn buttons
 	static void SpawnPed(const std::string& model, int variation, bool giveWeapon = false, bool isStoryGang = false)
@@ -1005,80 +780,1155 @@ namespace YimMenu::Submenus
 		SpawnPed(model, variation, false);
 	}
 
-	// reusable search helper system for all navigation menus
-	template<typename T>
-	struct SearchHelper
+	static void RenderHumansView()
 	{
-		std::string searchBuffer;
+		// back button in top-right corner
+		ImVec2 windowSize = ImGui::GetContentRegionAvail();
+		ImVec2 originalPos = ImGui::GetCursorPos();
 
-		// core search matching function
-		static bool MatchesSearch(const std::string& text, const std::string& searchTerm)
+		ImGui::SetCursorPos(ImVec2(windowSize.x - 30, 5));
+		if (ImGui::Button("X", ImVec2(25, 25)))
 		{
-			if (searchTerm.empty())
-				return true;
-
-			std::string textLower = text;
-			std::string searchLower = searchTerm;
-			std::transform(textLower.begin(), textLower.end(), textLower.begin(), ::tolower);
-			std::transform(searchLower.begin(), searchLower.end(), searchLower.begin(), ::tolower);
-
-			return textLower.find(searchLower) != std::string::npos;
+			g_InHumans = false;
 		}
 
-		// check if section name matches search
-		static bool SectionMatches(const std::string& sectionName, const std::string& searchTerm)
-		{
-			return MatchesSearch(sectionName, searchTerm);
-		}
+		// reset cursor to original position and add some top margin
+		ImGui::SetCursorPos(ImVec2(originalPos.x, originalPos.y + 35));
 
-		// count matching items in a collection
-		template<typename Container, typename GetNameFunc>
-		static int CountMatches(const Container& items, const std::string& searchTerm, GetNameFunc getName)
-		{
-			if (searchTerm.empty())
-				return static_cast<int>(items.size());
+		// placeholder content for humans
+		ImGui::Text("Humans - Coming Soon");
+		ImGui::Separator();
+		ImGui::Text("This will contain human ped categories and spawning options.");
+	}
 
-			int count = 0;
-			for (const auto& item : items)
-			{
-				if (MatchesSearch(getName(item), searchTerm))
-					count++;
-			}
-			return count;
-		}
-
-		// render search bar with count display
-		void RenderSearchBar(const std::string& placeholder, int totalItems, int visibleItems)
-		{
-			InputTextWithHint(("##search_" + placeholder).c_str(), placeholder.c_str(), &searchBuffer).Draw();
-
-			if (searchBuffer.empty())
-			{
-				ImGui::Text("Total: %d items", totalItems);
-			}
-			else
-			{
-				ImGui::Text("Found: %d items", visibleItems);
-			}
-
-			ImGui::Spacing();
-			ImGui::Separator();
-			ImGui::Spacing();
-		}
-
-		// check if item should be visible based on search criteria
-		template<typename Item, typename GetNameFunc>
-		bool ShouldShowItem(const Item& item, bool sectionMatches, GetNameFunc getName) const
-		{
-			return sectionMatches || MatchesSearch(getName(item), searchBuffer);
-		}
+	// horse data structure
+	struct Horse
+	{
+		std::string name;
+		std::string model;
+		std::string section;
+		int variation;
 	};
 
-	// search instances for each navigation menu
-	static SearchHelper<void> g_AnimalSearch;  // handles both legendary and regular animals
-	static SearchHelper<void> g_HumanSearch;  // placeholder for future use
-	static SearchHelper<void> g_HorseSearch;  // placeholder for future use
-	static SearchHelper<void> g_FishSearch;   // placeholder for future use
+	// horse data (parsed from horses.txt)
+	static std::vector<Horse> g_AmericanPaintHorses = {
+		{"Grey Overo", "A_C_HORSE_AMERICANPAINT_GREYOVERO", "American Paint", 0},
+		{"Overo", "A_C_HORSE_AMERICANPAINT_OVERO", "American Paint", 0},
+		{"Splashed White", "A_C_HORSE_AMERICANPAINT_SPLASHEDWHITE", "American Paint", 0},
+		{"Tobiano", "A_C_HORSE_AMERICANPAINT_TOBIANO", "American Paint", 0}
+	};
+
+	static std::vector<Horse> g_AmericanStandardbredHorses = {
+		{"Black", "A_C_HORSE_AMERICANSTANDARDBRED_BLACK", "American Standardbred", 0},
+		{"Buckskin", "A_C_HORSE_AMERICANSTANDARDBRED_BUCKSKIN", "American Standardbred", 0},
+		{"Light-Buckskin", "A_C_HORSE_AMERICANSTANDARDBRED_LIGHTBUCKSKIN", "American Standardbred", 0},
+		{"Palomino Dapple", "A_C_HORSE_AMERICANSTANDARDBRED_PALOMINODAPPLE", "American Standardbred", 0},
+		{"Silver Tail Buckskin", "A_C_HORSE_AMERICANSTANDARDBRED_SILVERTAILBUCKSKIN", "American Standardbred", 0}
+	};
+
+	static std::vector<Horse> g_AndalusianHorses = {
+		{"Dark Bay", "A_C_HORSE_ANDALUSIAN_DARKBAY", "Andalusian", 0},
+		{"Perlino", "A_C_HORSE_ANDALUSIAN_PERLINO", "Andalusian", 0},
+		{"Rose Gray", "A_C_HORSE_ANDALUSIAN_ROSEGRAY", "Andalusian", 0}
+	};
+
+	static std::vector<Horse> g_AppaloosaHorses = {
+		{"Black Snowflake", "A_C_HORSE_APPALOOSA_BLACKSNOWFLAKE", "Appaloosa", 0},
+		{"Blanket", "A_C_HORSE_APPALOOSA_BLANKET", "Appaloosa", 0},
+		{"Brown Leopard", "A_C_HORSE_APPALOOSA_BROWNLEOPARD", "Appaloosa", 0},
+		{"Few-Spotted PC", "A_C_HORSE_APPALOOSA_FEWSPOTTED_PC", "Appaloosa", 0},
+		{"Leopard", "A_C_HORSE_APPALOOSA_LEOPARD", "Appaloosa", 0},
+		{"Leopard Blanket", "A_C_HORSE_APPALOOSA_LEOPARDBLANKET", "Appaloosa", 0}
+	};
+
+	static std::vector<Horse> g_ArabianHorses = {
+		{"Black", "A_C_HORSE_ARABIAN_BLACK", "Arabian", 0},
+		{"Grey", "A_C_HORSE_ARABIAN_GREY", "Arabian", 0},
+		{"Red Chestnut", "A_C_HORSE_ARABIAN_REDCHESTNUT", "Arabian", 0},
+		{"Red Chestnut PC", "A_C_HORSE_ARABIAN_REDCHESTNUT_PC", "Arabian", 0},
+		{"Rose Grey Bay", "A_C_HORSE_ARABIAN_ROSEGREYBAY", "Arabian", 0},
+		{"Warped Brindle", "A_C_HORSE_ARABIAN_WARPEDBRINDLE", "Arabian", 0},
+		{"White", "A_C_HORSE_ARABIAN_WHITE", "Arabian", 0}
+	};
+
+	static std::vector<Horse> g_ArdennesHorses = {
+		{"Bay Roan", "A_C_HORSE_ARDENNES_BAYROAN", "Ardennes", 0},
+		{"Iron Grey Roan", "A_C_HORSE_ARDENNES_IRONGREYROAN", "Ardennes", 0},
+		{"Strawberry Roan", "A_C_HORSE_ARDENNES_STRAWBERRYROAN", "Ardennes", 0}
+	};
+
+	static std::vector<Horse> g_BelgianHorses = {
+		{"Blonde Chestnut", "A_C_HORSE_BELGIAN_BLONDCHESTNUT", "Belgian", 0},
+		{"Mealy Chestnut", "A_C_HORSE_BELGIAN_MEALYCHESTNUT", "Belgian", 0}
+	};
+
+	static std::vector<Horse> g_BretonHorses = {
+		{"Grullo Dun", "A_C_HORSE_BRETON_GRULLODUN", "Breton", 0},
+		{"Mealy Dapple Bay", "A_C_HORSE_BRETON_MEALYDAPPLEBAY", "Breton", 0},
+		{"Red Roan", "A_C_HORSE_BRETON_REDROAN", "Breton", 0},
+		{"Seal Brown", "A_C_HORSE_BRETON_SEALBROWN", "Breton", 0},
+		{"Sorrel", "A_C_HORSE_BRETON_SORREL", "Breton", 0},
+		{"Steel Grey", "A_C_HORSE_BRETON_STEELGREY", "Breton", 0}
+	};
+
+	static std::vector<Horse> g_CriolloHorses = {
+		{"Bay Brindle", "A_C_HORSE_CRIOLLO_BAYBRINDLE", "Criollo", 0},
+		{"Bay Frame Overo", "A_C_HORSE_CRIOLLO_BAYFRAMEOVERO", "Criollo", 0},
+		{"Blue Roan Overo", "A_C_HORSE_CRIOLLO_BLUEROANOVERO", "Criollo", 0},
+		{"Dun", "A_C_HORSE_CRIOLLO_DUN", "Criollo", 0},
+		{"Marble Sabino", "A_C_HORSE_CRIOLLO_MARBLESABINO", "Criollo", 0},
+		{"Sorrel Overo", "A_C_HORSE_CRIOLLO_SORRELOVERO", "Criollo", 0}
+	};
+
+	static std::vector<Horse> g_DutchWarmbloodHorses = {
+		{"Chocolate Roan", "A_C_HORSE_DUTCHWARMBLOOD_CHOCOLATEROAN", "Dutch Warmblood", 0},
+		{"Seal Brown", "A_C_HORSE_DUTCHWARMBLOOD_SEALBROWN", "Dutch Warmblood", 0},
+		{"Sooty Buckskin", "A_C_HORSE_DUTCHWARMBLOOD_SOOTYBUCKSKIN", "Dutch Warmblood", 0}
+	};
+
+	static std::vector<Horse> g_GangHorses = {
+		{"Bill's Horse", "A_C_HORSE_GANG_BILL", "Gang", 0},
+		{"Charles' Horse 1889", "A_C_HORSE_GANG_CHARLES", "Gang", 0},
+		{"Charles' Horse 1907", "A_C_HORSE_GANG_CHARLES_ENDLESSSUMMER", "Gang", 0},
+		{"Dutch's Horse", "A_C_HORSE_GANG_DUTCH", "Gang", 0},
+		{"Hosea's Horse", "A_C_HORSE_GANG_HOSEA", "Gang", 0},
+		{"Javier's Horse", "A_C_HORSE_GANG_JAVIER", "Gang", 0},
+		{"John's Horse 1889", "A_C_HORSE_GANG_JOHN", "Gang", 0},
+		{"John's Horse 1907", "A_C_HORSE_JOHN_ENDLESSSUMMER", "Gang", 0},
+		{"Karen's Horse", "A_C_HORSE_GANG_KAREN", "Gang", 0},
+		{"Kieran's Horse", "A_C_HORSE_GANG_KIERAN", "Gang", 0},
+		{"Lenny's Horse", "A_C_HORSE_GANG_LENNY", "Gang", 0},
+		{"Micah's Horse", "A_C_HORSE_GANG_MICAH", "Gang", 0},
+		{"Sadie's Horse 1889", "A_C_HORSE_GANG_SADIE", "Gang", 0},
+		{"Sadie's Horse 1907", "A_C_HORSE_GANG_SADIE_ENDLESSSUMMER", "Gang", 0},
+		{"Sean's Horse", "A_C_HORSE_GANG_SEAN", "Gang", 0},
+		{"Trelawney's Horse", "A_C_HORSE_GANG_TRELAWNEY", "Gang", 0},
+		{"Uncle's Horse 1889", "A_C_HORSE_GANG_UNCLE", "Gang", 0},
+		{"Uncle's Horse 1907", "A_C_HORSE_GANG_UNCLE_ENDLESSSUMMER", "Gang", 0},
+		{"EagleFlies' Horse", "A_C_HORSE_EAGLEFLIES", "Gang", 0},
+		{"Buell (Special)", "A_C_HORSE_BUELL_WARVETS", "Gang", 0}
+	};
+
+	static std::vector<Horse> g_GypsyCobHorses = {
+		{"Polomino Blagdon", "A_C_HORSE_GYPSYCOB_PALOMINOBLAGDON", "Gypsy Cob", 0},
+		{"Piebald", "A_C_HORSE_GYPSYCOB_PIEBALD", "Gypsy Cob", 0},
+		{"Skewbald", "A_C_HORSE_GYPSYCOB_SKEWBALD", "Gypsy Cob", 0},
+		{"Splashed Bay", "A_C_HORSE_GYPSYCOB_SPLASHEDBAY", "Gypsy Cob", 0},
+		{"Splashed Piedbald", "A_C_HORSE_GYPSYCOB_SPLASHEDPIEBALD", "Gypsy Cob", 0},
+		{"White Blagdon", "A_C_HORSE_GYPSYCOB_WHITEBLAGDON", "Gypsy Cob", 0}
+	};
+
+	static std::vector<Horse> g_HungarianHalfbredHorses = {
+		{"Dapple Dark Gray", "A_C_HORSE_HUNGARIANHALFBRED_DARKDAPPLEGREY", "Hungarian Halfbred", 0},
+		{"Flaxen Chestnut", "A_C_HORSE_HUNGARIANHALFBRED_FLAXENCHESTNUT", "Hungarian Halfbred", 0},
+		{"Liver Chestnut", "A_C_HORSE_HUNGARIANHALFBRED_LIVERCHESTNUT", "Hungarian Halfbred", 0},
+		{"Piebald Tobiano", "A_C_HORSE_HUNGARIANHALFBRED_PIEBALDTOBIANO", "Hungarian Halfbred", 0}
+	};
+
+	static std::vector<Horse> g_KentuckySaddlerHorses = {
+		{"Black", "A_C_HORSE_KENTUCKYSADDLE_BLACK", "Kentucky Saddler", 0},
+		{"Buttermilk Buckskin PC", "A_C_HORSE_KENTUCKYSADDLE_BUTTERMILKBUCKSKIN_PC", "Kentucky Saddler", 0},
+		{"Chestnut Pinto", "A_C_HORSE_KENTUCKYSADDLE_CHESTNUTPINTO", "Kentucky Saddler", 0},
+		{"Grey", "A_C_HORSE_KENTUCKYSADDLE_GREY", "Kentucky Saddler", 0},
+		{"Silver Bay", "A_C_HORSE_KENTUCKYSADDLE_SILVERBAY", "Kentucky Saddler", 0}
+	};
+
+	static std::vector<Horse> g_KlardruberHorses = {
+		{"Black", "A_C_HORSE_KLADRUBER_BLACK", "Klardruber", 0},
+		{"Cremello", "A_C_HORSE_KLADRUBER_CREMELLO", "Klardruber", 0},
+		{"Dapple Rose Grey", "A_C_HORSE_KLADRUBER_DAPPLEROSEGREY", "Klardruber", 0},
+		{"Grey", "A_C_HORSE_KLADRUBER_GREY", "Klardruber", 0},
+		{"Silver", "A_C_HORSE_KLADRUBER_SILVER", "Klardruber", 0},
+		{"White", "A_C_HORSE_KLADRUBER_WHITE", "Klardruber", 0}
+	};
+
+	static std::vector<Horse> g_MissouriFoxTrotterHorses = {
+		{"Amber Champagne", "A_C_HORSE_MISSOURIFOXTROTTER_AMBERCHAMPAGNE", "Missouri Fox Trotter", 0},
+		{"Black Tovero", "A_C_HORSE_MISSOURIFOXTROTTER_BLACKTOVERO", "Missouri Fox Trotter", 0},
+		{"Blue Roan", "A_C_HORSE_MISSOURIFOXTROTTER_BLUEROAN", "Missouri Fox Trotter", 0},
+		{"Buckskin Brindle", "A_C_HORSE_MISSOURIFOXTROTTER_BUCKSKINBRINDLE", "Missouri Fox Trotter", 0},
+		{"Dapple Grey", "A_C_HORSE_MISSOURIFOXTROTTER_DAPPLEGREY", "Missouri Fox Trotter", 0},
+		{"Sable Champagne", "A_C_HORSE_MISSOURIFOXTROTTER_SABLECHAMPAGNE", "Missouri Fox Trotter", 0},
+		{"Silver Dapple Pinto", "A_C_HORSE_MISSOURIFOXTROTTER_SILVERDAPPLEPINTO", "Missouri Fox Trotter", 0}
+	};
+
+	static std::vector<Horse> g_MorganHorses = {
+		{"Bay", "A_C_HORSE_MORGAN_BAY", "Morgan", 0},
+		{"Bay Roan", "A_C_HORSE_MORGAN_BAYROAN", "Morgan", 0},
+		{"Flaxen Chestnut", "A_C_HORSE_MORGAN_FLAXENCHESTNUT", "Morgan", 0},
+		{"Liver Chestnut PC", "A_C_HORSE_MORGAN_LIVERCHESTNUT_PC", "Morgan", 0},
+		{"Palomino", "A_C_HORSE_MORGAN_PALOMINO", "Morgan", 0}
+	};
+
+	static std::vector<Horse> g_MustangHorses = {
+		{"Black Overo", "A_C_HORSE_MUSTANG_BLACKOVERO", "Mustang", 0},
+		{"Buckskin", "A_C_HORSE_MUSTANG_BUCKSKIN", "Mustang", 0},
+		{"Chestnut Tovero", "A_C_HORSE_MUSTANG_CHESTNUTTOVERO", "Mustang", 0},
+		{"Golden Dun", "A_C_HORSE_MUSTANG_GOLDENDUN", "Mustang", 0},
+		{"Grullo Dun", "A_C_HORSE_MUSTANG_GRULLODUN", "Mustang", 0},
+		{"Red Dun Overo", "A_C_HORSE_MUSTANG_REDDUNOVERO", "Mustang", 0},
+		{"Tigerstriped Bay", "A_C_HORSE_MUSTANG_TIGERSTRIPEDBAY", "Mustang", 0},
+		{"Wild Bay", "A_C_HORSE_MUSTANG_WILDBAY", "Mustang", 0}
+	};
+
+	static std::vector<Horse> g_NokotaHorses = {
+		{"Blue Roan", "A_C_HORSE_NOKOTA_BLUEROAN", "Nokota", 0},
+		{"Reverse Dapple Roan", "A_C_HORSE_NOKOTA_REVERSEDAPPLEROAN", "Nokota", 0},
+		{"White Roan", "A_C_HORSE_NOKOTA_WHITEROAN", "Nokota", 0}
+	};
+
+	static std::vector<Horse> g_NorfolkRoadsterHorses = {
+		{"Black", "A_C_HORSE_NORFOLKROADSTER_BLACK", "Norfolk Roadster", 0},
+		{"Dappled Buckskin", "A_C_HORSE_NORFOLKROADSTER_DAPPLEDBUCKSKIN", "Norfolk Roadster", 0},
+		{"Piebald Roan", "A_C_HORSE_NORFOLKROADSTER_PIEBALDROAN", "Norfolk Roadster", 0},
+		{"Rose Gray", "A_C_HORSE_NORFOLKROADSTER_ROSEGREY", "Norfolk Roadster", 0},
+		{"Speckled Gray", "A_C_HORSE_NORFOLKROADSTER_SPECKLEDGREY", "Norfolk Roadster", 0},
+		{"Spotted Tricolor", "A_C_HORSE_NORFOLKROADSTER_SPOTTEDTRICOLOR", "Norfolk Roadster", 0}
+	};
+
+	static std::vector<Horse> g_ShireHorses = {
+		{"Dark Bay", "A_C_HORSE_SHIRE_DARKBAY", "Shire", 0},
+		{"Light Grey", "A_C_HORSE_SHIRE_LIGHTGREY", "Shire", 0},
+		{"Raven Black", "A_C_HORSE_SHIRE_RAVENBLACK", "Shire", 0}
+	};
+
+	static std::vector<Horse> g_SuffolkPunchHorses = {
+		{"Red Chestnut", "A_C_HORSE_SUFFOLKPUNCH_REDCHESTNUT", "Suffolk Punch", 0},
+		{"Sorrel", "A_C_HORSE_SUFFOLKPUNCH_SORREL", "Suffolk Punch", 0}
+	};
+
+	static std::vector<Horse> g_TennesseeWalkerHorses = {
+		{"Black Rabicano", "A_C_HORSE_TENNESSEEWALKER_BLACKRABICANO", "Tennessee Walker", 0},
+		{"Chestnut", "A_C_HORSE_TENNESSEEWALKER_CHESTNUT", "Tennessee Walker", 0},
+		{"Dapple Bay", "A_C_HORSE_TENNESSEEWALKER_DAPPLEBAY", "Tennessee Walker", 0},
+		{"Flaxen Roan", "A_C_HORSE_TENNESSEEWALKER_FLAXENROAN", "Tennessee Walker", 0},
+		{"Gold Palomino PC", "A_C_HORSE_TENNESSEEWALKER_GOLDPALOMINO_PC", "Tennessee Walker", 0},
+		{"Mahogany Bay", "A_C_HORSE_TENNESSEEWALKER_MAHOGANYBAY", "Tennessee Walker", 0},
+		{"Red Roan", "A_C_HORSE_TENNESSEEWALKER_REDROAN", "Tennessee Walker", 0}
+	};
+
+	static std::vector<Horse> g_ThoroughbredHorses = {
+		{"Black Chestnut", "A_C_HORSE_THOROUGHBRED_BLACKCHESTNUT", "Thoroughbred", 0},
+		{"Blood Bay", "A_C_HORSE_THOROUGHBRED_BLOODBAY", "Thoroughbred", 0},
+		{"Brindle", "A_C_HORSE_THOROUGHBRED_BRINDLE", "Thoroughbred", 0},
+		{"Dapple Gray", "A_C_HORSE_THOROUGHBRED_DAPPLEGREY", "Thoroughbred", 0},
+		{"Reverse Dapple Black", "A_C_HORSE_THOROUGHBRED_REVERSEDAPPLEBLACK", "Thoroughbred", 0}
+	};
+
+	static std::vector<Horse> g_TurkomanHorses = {
+		{"Black", "A_C_HORSE_TURKOMAN_BLACK", "Turkoman", 0},
+		{"Chestnut", "A_C_HORSE_TURKOMAN_CHESTNUT", "Turkoman", 0},
+		{"Dark Bay", "A_C_HORSE_TURKOMAN_DARKBAY", "Turkoman", 0},
+		{"Gold", "A_C_HORSE_TURKOMAN_GOLD", "Turkoman", 0},
+		{"Grey", "A_C_HORSE_TURKOMAN_GREY", "Turkoman", 0},
+		{"Perlino", "A_C_HORSE_TURKOMAN_PERLINO", "Turkoman", 0},
+		{"Silver", "A_C_HORSE_TURKOMAN_SILVER", "Turkoman", 0}
+	};
+
+	static std::vector<Horse> g_MiscellaneousHorses = {
+		{"Donkey", "A_C_Donkey_01", "Miscellaneous", 0},
+		{"Scrawny Nag", "A_C_HORSE_MP_MANGY_BACKUP", "Miscellaneous", 0},
+		{"Mule", "A_C_HORSEMULE_01", "Miscellaneous", 0},
+		{"Mule Painted", "A_C_HORSEMULEPAINTED_01", "Miscellaneous", 0},
+		{"Murfree Blanket", "A_C_HORSE_MURFREEBROOD_MANGE_01", "Miscellaneous", 0},
+		{"Murfree Blue Roan", "A_C_HORSE_MURFREEBROOD_MANGE_02", "Miscellaneous", 0},
+		{"Murfree Black Rabicano", "A_C_HORSE_MURFREEBROOD_MANGE_03", "Miscellaneous", 0},
+		{"Horse Winter", "A_C_HORSE_WINTER02_01", "Miscellaneous", 0},
+		{"Unknown PC Horse", "P_C_HORSE_01", "Miscellaneous", 0},
+		{"RDO Special Arabian", "MP_A_C_HORSECORPSE_01", "Miscellaneous", 0},
+		{"RDO OwlHoot Victim", "MP_HORSE_OWLHOOTVICTIM_01", "Miscellaneous", 0}
+	};
+
+	static void RenderHorsesView()
+	{
+		// back button in top-right corner
+		ImVec2 windowSize = ImGui::GetContentRegionAvail();
+		ImVec2 originalPos = ImGui::GetCursorPos();
+
+		ImGui::SetCursorPos(ImVec2(windowSize.x - 30, 5));
+		if (ImGui::Button("X", ImVec2(25, 25)))
+		{
+			g_InHorses = false;
+		}
+
+		// reset cursor to original position and add some top margin
+		ImGui::SetCursorPos(ImVec2(originalPos.x, originalPos.y + 35));
+
+		// helper function for centered separator with custom line width
+		auto RenderCenteredSeparator = [](const char* text) {
+			ImGui::PushFont(Menu::Font::g_ChildTitleFont);
+			ImVec2 textSize = ImGui::CalcTextSize(text);
+			ImVec2 contentRegion = ImGui::GetContentRegionAvail();
+
+			// center text
+			ImGui::SetCursorPosX((contentRegion.x - textSize.x) * 0.5f);
+			ImGui::Text(text);
+			ImGui::PopFont();
+
+			// draw centered line (3x text width) using screen coordinates
+			float lineWidth = textSize.x * 3.0f;
+			float linePosX = (contentRegion.x - lineWidth) * 0.5f;
+
+			ImDrawList* drawList = ImGui::GetWindowDrawList();
+			ImVec2 windowPos = ImGui::GetWindowPos();
+			ImVec2 cursorScreenPos = ImGui::GetCursorScreenPos();
+
+			// use screen coordinates for proper positioning with scrolling
+			drawList->AddLine(
+				ImVec2(windowPos.x + linePosX, cursorScreenPos.y),
+				ImVec2(windowPos.x + linePosX + lineWidth, cursorScreenPos.y),
+				ImGui::GetColorU32(ImGuiCol_Separator), 1.0f);
+
+			ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
+			ImGui::Spacing();
+		};
+
+		// lambda function for getting horse names
+		auto getHorseName = [](const Horse& horse) { return horse.name; };
+
+		// calculate totals for all horse sections
+		int totalHorses = static_cast<int>(g_AmericanPaintHorses.size() + g_AmericanStandardbredHorses.size() +
+		                                  g_AndalusianHorses.size() + g_AppaloosaHorses.size() + g_ArabianHorses.size() +
+		                                  g_ArdennesHorses.size() + g_BelgianHorses.size() + g_BretonHorses.size() +
+		                                  g_CriolloHorses.size() + g_DutchWarmbloodHorses.size() + g_GangHorses.size() +
+		                                  g_GypsyCobHorses.size() + g_HungarianHalfbredHorses.size() + g_KentuckySaddlerHorses.size() +
+		                                  g_KlardruberHorses.size() + g_MissouriFoxTrotterHorses.size() + g_MorganHorses.size() +
+		                                  g_MustangHorses.size() + g_NokotaHorses.size() + g_NorfolkRoadsterHorses.size() +
+		                                  g_ShireHorses.size() + g_SuffolkPunchHorses.size() + g_TennesseeWalkerHorses.size() +
+		                                  g_ThoroughbredHorses.size() + g_TurkomanHorses.size() + g_MiscellaneousHorses.size());
+
+		// check section matches for search
+		bool americanPaintMatches = g_HorseSearch.SectionMatches("American Paint", g_HorseSearch.searchBuffer);
+		bool americanStandardbredMatches = g_HorseSearch.SectionMatches("American Standardbred", g_HorseSearch.searchBuffer);
+		bool andalusianMatches = g_HorseSearch.SectionMatches("Andalusian", g_HorseSearch.searchBuffer);
+		bool appaloosaMatches = g_HorseSearch.SectionMatches("Appaloosa", g_HorseSearch.searchBuffer);
+		bool arabianMatches = g_HorseSearch.SectionMatches("Arabian", g_HorseSearch.searchBuffer);
+		bool ardennesMatches = g_HorseSearch.SectionMatches("Ardennes", g_HorseSearch.searchBuffer);
+		bool belgianMatches = g_HorseSearch.SectionMatches("Belgian", g_HorseSearch.searchBuffer);
+		bool bretonMatches = g_HorseSearch.SectionMatches("Breton", g_HorseSearch.searchBuffer);
+		bool criolloMatches = g_HorseSearch.SectionMatches("Criollo", g_HorseSearch.searchBuffer);
+		bool dutchWarmbloodMatches = g_HorseSearch.SectionMatches("Dutch Warmblood", g_HorseSearch.searchBuffer);
+		bool gangMatches = g_HorseSearch.SectionMatches("Gang", g_HorseSearch.searchBuffer);
+		bool gypsyCobMatches = g_HorseSearch.SectionMatches("Gypsy Cob", g_HorseSearch.searchBuffer);
+		bool hungarianHalfbredMatches = g_HorseSearch.SectionMatches("Hungarian Halfbred", g_HorseSearch.searchBuffer);
+		bool kentuckySaddlerMatches = g_HorseSearch.SectionMatches("Kentucky Saddler", g_HorseSearch.searchBuffer);
+		bool klardruberMatches = g_HorseSearch.SectionMatches("Klardruber", g_HorseSearch.searchBuffer);
+		bool missouriFoxTrotterMatches = g_HorseSearch.SectionMatches("Missouri Fox Trotter", g_HorseSearch.searchBuffer);
+		bool morganMatches = g_HorseSearch.SectionMatches("Morgan", g_HorseSearch.searchBuffer);
+		bool mustangMatches = g_HorseSearch.SectionMatches("Mustang", g_HorseSearch.searchBuffer);
+		bool nokotaMatches = g_HorseSearch.SectionMatches("Nokota", g_HorseSearch.searchBuffer);
+		bool norfolkRoadsterMatches = g_HorseSearch.SectionMatches("Norfolk Roadster", g_HorseSearch.searchBuffer);
+		bool shireMatches = g_HorseSearch.SectionMatches("Shire", g_HorseSearch.searchBuffer);
+		bool suffolkPunchMatches = g_HorseSearch.SectionMatches("Suffolk Punch", g_HorseSearch.searchBuffer);
+		bool tennesseeWalkerMatches = g_HorseSearch.SectionMatches("Tennessee Walker", g_HorseSearch.searchBuffer);
+		bool thoroughbredMatches = g_HorseSearch.SectionMatches("Thoroughbred", g_HorseSearch.searchBuffer);
+		bool turkomanMatches = g_HorseSearch.SectionMatches("Turkoman", g_HorseSearch.searchBuffer);
+		bool miscellaneousMatches = g_HorseSearch.SectionMatches("Miscellaneous", g_HorseSearch.searchBuffer);
+
+		// count visible horses in each section
+		int americanPaintVisible = americanPaintMatches ? static_cast<int>(g_AmericanPaintHorses.size()) :
+		                          g_HorseSearch.CountMatches(g_AmericanPaintHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int americanStandardbredVisible = americanStandardbredMatches ? static_cast<int>(g_AmericanStandardbredHorses.size()) :
+		                                 g_HorseSearch.CountMatches(g_AmericanStandardbredHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int andalusianVisible = andalusianMatches ? static_cast<int>(g_AndalusianHorses.size()) :
+		                       g_HorseSearch.CountMatches(g_AndalusianHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int appaloosaVisible = appaloosaMatches ? static_cast<int>(g_AppaloosaHorses.size()) :
+		                      g_HorseSearch.CountMatches(g_AppaloosaHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int arabianVisible = arabianMatches ? static_cast<int>(g_ArabianHorses.size()) :
+		                    g_HorseSearch.CountMatches(g_ArabianHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int ardennesVisible = ardennesMatches ? static_cast<int>(g_ArdennesHorses.size()) :
+		                     g_HorseSearch.CountMatches(g_ArdennesHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int belgianVisible = belgianMatches ? static_cast<int>(g_BelgianHorses.size()) :
+		                    g_HorseSearch.CountMatches(g_BelgianHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int bretonVisible = bretonMatches ? static_cast<int>(g_BretonHorses.size()) :
+		                   g_HorseSearch.CountMatches(g_BretonHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int criolloVisible = criolloMatches ? static_cast<int>(g_CriolloHorses.size()) :
+		                    g_HorseSearch.CountMatches(g_CriolloHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int dutchWarmbloodVisible = dutchWarmbloodMatches ? static_cast<int>(g_DutchWarmbloodHorses.size()) :
+		                           g_HorseSearch.CountMatches(g_DutchWarmbloodHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int gangVisible = gangMatches ? static_cast<int>(g_GangHorses.size()) :
+		                 g_HorseSearch.CountMatches(g_GangHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int gypsyCobVisible = gypsyCobMatches ? static_cast<int>(g_GypsyCobHorses.size()) :
+		                     g_HorseSearch.CountMatches(g_GypsyCobHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int hungarianHalfbredVisible = hungarianHalfbredMatches ? static_cast<int>(g_HungarianHalfbredHorses.size()) :
+		                              g_HorseSearch.CountMatches(g_HungarianHalfbredHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int kentuckySaddlerVisible = kentuckySaddlerMatches ? static_cast<int>(g_KentuckySaddlerHorses.size()) :
+		                            g_HorseSearch.CountMatches(g_KentuckySaddlerHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int klardruberVisible = klardruberMatches ? static_cast<int>(g_KlardruberHorses.size()) :
+		                       g_HorseSearch.CountMatches(g_KlardruberHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int missouriFoxTrotterVisible = missouriFoxTrotterMatches ? static_cast<int>(g_MissouriFoxTrotterHorses.size()) :
+		                               g_HorseSearch.CountMatches(g_MissouriFoxTrotterHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int morganVisible = morganMatches ? static_cast<int>(g_MorganHorses.size()) :
+		                   g_HorseSearch.CountMatches(g_MorganHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int mustangVisible = mustangMatches ? static_cast<int>(g_MustangHorses.size()) :
+		                    g_HorseSearch.CountMatches(g_MustangHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int nokotaVisible = nokotaMatches ? static_cast<int>(g_NokotaHorses.size()) :
+		                   g_HorseSearch.CountMatches(g_NokotaHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int norfolkRoadsterVisible = norfolkRoadsterMatches ? static_cast<int>(g_NorfolkRoadsterHorses.size()) :
+		                            g_HorseSearch.CountMatches(g_NorfolkRoadsterHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int shireVisible = shireMatches ? static_cast<int>(g_ShireHorses.size()) :
+		                  g_HorseSearch.CountMatches(g_ShireHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int suffolkPunchVisible = suffolkPunchMatches ? static_cast<int>(g_SuffolkPunchHorses.size()) :
+		                         g_HorseSearch.CountMatches(g_SuffolkPunchHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int tennesseeWalkerVisible = tennesseeWalkerMatches ? static_cast<int>(g_TennesseeWalkerHorses.size()) :
+		                            g_HorseSearch.CountMatches(g_TennesseeWalkerHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int thoroughbredVisible = thoroughbredMatches ? static_cast<int>(g_ThoroughbredHorses.size()) :
+		                         g_HorseSearch.CountMatches(g_ThoroughbredHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int turkomanVisible = turkomanMatches ? static_cast<int>(g_TurkomanHorses.size()) :
+		                     g_HorseSearch.CountMatches(g_TurkomanHorses, g_HorseSearch.searchBuffer, getHorseName);
+		int miscellaneousVisible = miscellaneousMatches ? static_cast<int>(g_MiscellaneousHorses.size()) :
+		                          g_HorseSearch.CountMatches(g_MiscellaneousHorses, g_HorseSearch.searchBuffer, getHorseName);
+
+		// determine section visibility
+		bool showAmericanPaint = americanPaintMatches || (americanPaintVisible > 0);
+		bool showAmericanStandardbred = americanStandardbredMatches || (americanStandardbredVisible > 0);
+		bool showAndalusian = andalusianMatches || (andalusianVisible > 0);
+		bool showAppaloosa = appaloosaMatches || (appaloosaVisible > 0);
+		bool showArabian = arabianMatches || (arabianVisible > 0);
+		bool showArdennes = ardennesMatches || (ardennesVisible > 0);
+		bool showBelgian = belgianMatches || (belgianVisible > 0);
+		bool showBreton = bretonMatches || (bretonVisible > 0);
+		bool showCriollo = criolloMatches || (criolloVisible > 0);
+		bool showDutchWarmblood = dutchWarmbloodMatches || (dutchWarmbloodVisible > 0);
+		bool showGang = gangMatches || (gangVisible > 0);
+		bool showGypsyCob = gypsyCobMatches || (gypsyCobVisible > 0);
+		bool showHungarianHalfbred = hungarianHalfbredMatches || (hungarianHalfbredVisible > 0);
+		bool showKentuckySaddler = kentuckySaddlerMatches || (kentuckySaddlerVisible > 0);
+		bool showKlardruber = klardruberMatches || (klardruberVisible > 0);
+		bool showMissouriFoxTrotter = missouriFoxTrotterMatches || (missouriFoxTrotterVisible > 0);
+		bool showMorgan = morganMatches || (morganVisible > 0);
+		bool showMustang = mustangMatches || (mustangVisible > 0);
+		bool showNokota = nokotaMatches || (nokotaVisible > 0);
+		bool showNorfolkRoadster = norfolkRoadsterMatches || (norfolkRoadsterVisible > 0);
+		bool showShire = shireMatches || (shireVisible > 0);
+		bool showSuffolkPunch = suffolkPunchMatches || (suffolkPunchVisible > 0);
+		bool showTennesseeWalker = tennesseeWalkerMatches || (tennesseeWalkerVisible > 0);
+		bool showThoroughbred = thoroughbredMatches || (thoroughbredVisible > 0);
+		bool showTurkoman = turkomanMatches || (turkomanVisible > 0);
+		bool showMiscellaneous = miscellaneousMatches || (miscellaneousVisible > 0);
+
+		int totalVisible = americanPaintVisible + americanStandardbredVisible + andalusianVisible + appaloosaVisible + arabianVisible +
+		                  ardennesVisible + belgianVisible + bretonVisible + criolloVisible + dutchWarmbloodVisible + gangVisible +
+		                  gypsyCobVisible + hungarianHalfbredVisible + kentuckySaddlerVisible + klardruberVisible + missouriFoxTrotterVisible +
+		                  morganVisible + mustangVisible + nokotaVisible + norfolkRoadsterVisible + shireVisible + suffolkPunchVisible +
+		                  tennesseeWalkerVisible + thoroughbredVisible + turkomanVisible + miscellaneousVisible;
+
+		// render search bar with count
+		g_HorseSearch.RenderSearchBar("Search Horses", totalHorses, totalVisible);
+
+		// american paint section
+		if (showAmericanPaint)
+		{
+			RenderCenteredSeparator("American Paint");
+			for (const auto& horse : g_AmericanPaintHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, americanPaintMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// american standardbred section
+		if (showAmericanStandardbred)
+		{
+			RenderCenteredSeparator("American Standardbred");
+			for (const auto& horse : g_AmericanStandardbredHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, americanStandardbredMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// andalusian section
+		if (showAndalusian)
+		{
+			RenderCenteredSeparator("Andalusian");
+			for (const auto& horse : g_AndalusianHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, andalusianMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// appaloosa section
+		if (showAppaloosa)
+		{
+			RenderCenteredSeparator("Appaloosa");
+			for (const auto& horse : g_AppaloosaHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, appaloosaMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// arabian section
+		if (showArabian)
+		{
+			RenderCenteredSeparator("Arabian");
+			for (const auto& horse : g_ArabianHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, arabianMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// ardennes section
+		if (showArdennes)
+		{
+			RenderCenteredSeparator("Ardennes");
+			for (const auto& horse : g_ArdennesHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, ardennesMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// belgian section
+		if (showBelgian)
+		{
+			RenderCenteredSeparator("Belgian");
+			for (const auto& horse : g_BelgianHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, belgianMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// breton section
+		if (showBreton)
+		{
+			RenderCenteredSeparator("Breton");
+			for (const auto& horse : g_BretonHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, bretonMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// criollo section
+		if (showCriollo)
+		{
+			RenderCenteredSeparator("Criollo");
+			for (const auto& horse : g_CriolloHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, criolloMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// dutch warmblood section
+		if (showDutchWarmblood)
+		{
+			RenderCenteredSeparator("Dutch Warmblood");
+			for (const auto& horse : g_DutchWarmbloodHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, dutchWarmbloodMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// gang section
+		if (showGang)
+		{
+			RenderCenteredSeparator("Gang");
+			for (const auto& horse : g_GangHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, gangMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// gypsy cob section
+		if (showGypsyCob)
+		{
+			RenderCenteredSeparator("Gypsy Cob");
+			for (const auto& horse : g_GypsyCobHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, gypsyCobMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// hungarian halfbred section
+		if (showHungarianHalfbred)
+		{
+			RenderCenteredSeparator("Hungarian Halfbred");
+			for (const auto& horse : g_HungarianHalfbredHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, hungarianHalfbredMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// kentucky saddler section
+		if (showKentuckySaddler)
+		{
+			RenderCenteredSeparator("Kentucky Saddler");
+			for (const auto& horse : g_KentuckySaddlerHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, kentuckySaddlerMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// klardruber section
+		if (showKlardruber)
+		{
+			RenderCenteredSeparator("Klardruber");
+			for (const auto& horse : g_KlardruberHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, klardruberMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// missouri fox trotter section
+		if (showMissouriFoxTrotter)
+		{
+			RenderCenteredSeparator("Missouri Fox Trotter");
+			for (const auto& horse : g_MissouriFoxTrotterHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, missouriFoxTrotterMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// morgan section
+		if (showMorgan)
+		{
+			RenderCenteredSeparator("Morgan");
+			for (const auto& horse : g_MorganHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, morganMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// mustang section
+		if (showMustang)
+		{
+			RenderCenteredSeparator("Mustang");
+			for (const auto& horse : g_MustangHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, mustangMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// nokota section
+		if (showNokota)
+		{
+			RenderCenteredSeparator("Nokota");
+			for (const auto& horse : g_NokotaHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, nokotaMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// norfolk roadster section
+		if (showNorfolkRoadster)
+		{
+			RenderCenteredSeparator("Norfolk Roadster");
+			for (const auto& horse : g_NorfolkRoadsterHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, norfolkRoadsterMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// shire section
+		if (showShire)
+		{
+			RenderCenteredSeparator("Shire");
+			for (const auto& horse : g_ShireHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, shireMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// suffolk punch section
+		if (showSuffolkPunch)
+		{
+			RenderCenteredSeparator("Suffolk Punch");
+			for (const auto& horse : g_SuffolkPunchHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, suffolkPunchMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// tennessee walker section
+		if (showTennesseeWalker)
+		{
+			RenderCenteredSeparator("Tennessee Walker");
+			for (const auto& horse : g_TennesseeWalkerHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, tennesseeWalkerMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// thoroughbred section
+		if (showThoroughbred)
+		{
+			RenderCenteredSeparator("Thoroughbred");
+			for (const auto& horse : g_ThoroughbredHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, thoroughbredMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// turkoman section
+		if (showTurkoman)
+		{
+			RenderCenteredSeparator("Turkoman");
+			for (const auto& horse : g_TurkomanHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, turkomanMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// miscellaneous section
+		if (showMiscellaneous)
+		{
+			RenderCenteredSeparator("Miscellaneous");
+			for (const auto& horse : g_MiscellaneousHorses)
+			{
+				if (g_HorseSearch.ShouldShowItem(horse, miscellaneousMatches, getHorseName))
+				{
+					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
+					{
+						SpawnAnimal(horse.model, horse.variation);
+					}
+				}
+			}
+			ImGui::Spacing();
+		}
+
+		// show helpful message when no matches found
+		bool anyVisible = showAmericanPaint || showAmericanStandardbred || showAndalusian || showAppaloosa || showArabian ||
+		                 showArdennes || showBelgian || showBreton || showCriollo || showDutchWarmblood || showGang ||
+		                 showGypsyCob || showHungarianHalfbred || showKentuckySaddler || showKlardruber || showMissouriFoxTrotter ||
+		                 showMorgan || showMustang || showNokota || showNorfolkRoadster || showShire || showSuffolkPunch ||
+		                 showTennesseeWalker || showThoroughbred || showTurkoman || showMiscellaneous;
+
+		if (!anyVisible && !g_HorseSearch.searchBuffer.empty())
+		{
+			ImGui::Text("No horses or sections match your search");
+			ImGui::Text("Try searching for: 'american', 'arabian', 'black', 'grey', 'gang', 'mustang', etc.");
+		}
+	}
+
+	// animal data structures
+	struct LegendaryAnimal
+	{
+		std::string name;
+		std::string model;
+		int variation;
+	};
+
+	struct RegularAnimal
+	{
+		std::string name;
+		std::string model;
+		int variation;
+	};
+
+	struct Dog
+	{
+		std::string name;
+		std::string model;
+		int variation;
+	};
+
+	// legendary animals data (parsed from animals.txt)
+	static std::vector<LegendaryAnimal> g_LegendaryAnimals = {
+		{"Bull Gator", "a_c_alligator_02", 0},
+		{"Bharati Grizzly Bear", "a_c_bear_01", 1},
+		{"Beaver", "a_c_beaver_01", 1},
+		{"Big Horn Ram", "a_c_bighornram_01", 12},
+		{"Boar", "a_c_boarlegendary_01", 0},
+		{"Buck", "a_c_buck_01", 3},
+		{"Tatanka Bison", "a_c_buffalo_tatanka_01", 0},
+		{"White Bison", "a_c_buffalo_01", 4},
+		{"Legendary Cougar", "a_c_cougar_01", 5},
+		{"Coyote", "a_c_coyote_01", 1},
+		{"Elk", "a_c_elk_01", 1},
+		{"Fox", "a_c_fox_01", 3},
+		{"Moose", "a_c_moose_01", 6},
+		{"Giaguaro Panther", "a_c_panther_01", 1},
+		{"Pronghorn", "a_c_pronghorn_01", 1},
+		{"Wolf", "a_c_wolf", 3},
+		{"Teca Gator", "MP_A_C_Alligator_01", 0},
+		{"Sun Gator", "MP_A_C_Alligator_01", 1},
+		{"Banded Gator", "MP_A_C_Alligator_01", 2},
+		{"Owiza Bear", "MP_A_C_Bear_01", 1},
+		{"Ridgeback Spirit Bear", "MP_A_C_Bear_01", 2},
+		{"Golden Spirit Bear", "MP_A_C_Bear_01", 3},
+		{"Zizi Beaver", "MP_A_C_Beaver_01", 0},
+		{"Moon Beaver", "MP_A_C_Beaver_01", 1},
+		{"Night Beaver", "MP_A_C_Beaver_01", 2},
+		{"Gabbro Horn Ram", "MP_A_C_BigHornRam_01", 0},
+		{"Chalk Horn Ram", "MP_A_C_BigHornRam_01", 1},
+		{"Rutile Horn Ram", "MP_A_C_BigHornRam_01", 2},
+		{"Cogi Boar", "MP_A_C_Boar_01", 0},
+		{"Wakpa Boar", "MP_A_C_Boar_01", 1},
+		{"Icahi Boar", "MP_A_C_Boar_01", 2},
+		{"Mud Runner Buck", "MP_A_C_Buck_01", 2},
+		{"Snow Buck", "MP_A_C_Buck_01", 3},
+		{"Shadow Buck", "MP_A_C_Buck_01", 4},
+		{"Tatanka Bison (Online)", "MP_A_C_Buffalo_01", 0},
+		{"Winyan Bison", "MP_A_C_Buffalo_01", 1},
+		{"Payta Bison", "MP_A_C_Buffalo_01", 2},
+		{"Iguga Cougar", "MP_A_C_Cougar_01", 0},
+		{"Maza Cougar", "MP_A_C_Cougar_01", 1},
+		{"Sapa Cougar", "MP_A_C_Cougar_01", 2},
+		{"Red Streak Coyote", "MP_A_C_Coyote_01", 0},
+		{"Midnight Paw Coyote", "MP_A_C_Coyote_01", 1},
+		{"Milk Coyote", "MP_A_C_Coyote_01", 2},
+		{"Katata Elk", "MP_A_C_Elk_01", 1},
+		{"Ozula Elk", "MP_A_C_Elk_01", 2},
+		{"Inahme Elk", "MP_A_C_Elk_01", 3},
+		{"Ota Fox", "MP_A_C_Fox_01", 0},
+		{"Marble Fox", "MP_A_C_Fox_01", 1},
+		{"Cross Fox", "MP_A_C_Fox_01", 2},
+		{"Snowflake Moose", "MP_A_C_Moose_01", 1},
+		{"Knight Moose", "MP_A_C_Moose_01", 2},
+		{"Ruddy Moose", "MP_A_C_Moose_01", 3},
+		{"Nightwalker Panther", "MP_A_C_Panther_01", 0},
+		{"Ghost Panther", "MP_A_C_Panther_01", 1},
+		{"Iwakta Panther", "MP_A_C_Panther_01", 2},
+		{"Emerald Wolf", "MP_A_C_Wolf_01", 0},
+		{"Onyx Wolf", "MP_A_C_Wolf_01", 1},
+		{"Moonstone Wolf", "MP_A_C_Wolf_01", 2}
+	};
+
+	// regular animals data (parsed from animals.txt - lines 1-304)
+	static std::vector<RegularAnimal> g_RegularAnimals = {
+		{"American Alligator", "A_C_Alligator_01", 0},
+		{"American Alligator (small)", "A_C_Alligator_03", 0},
+		{"Nine-Banded Armadillo", "A_C_Armadillo_01", 0},
+		{"American Badger", "A_C_Badger_01", 0},
+		{"Little Brown Bat", "A_C_Bat_01", 0},
+		{"American Black Bear", "A_C_BearBlack_01", 0},
+		{"Grizzly Bear", "A_C_Bear_01", 0},
+		{"North American Beaver", "A_C_Beaver_01", 0},
+		{"Blue Jay", "A_C_BlueJay_01", 0},
+		{"Wild Boar", "A_C_Boar_01", 0},
+		{"Whitetail Buck", "A_C_Buck_01", 0},
+		{"Whitetail Deer", "A_C_Deer_01", 0},
+		{"American Bison", "A_C_Buffalo_01", 0},
+		{"Angus Bull", "A_C_Bull_01", 0},
+		{"Devon Bull", "A_C_Bull_01", 3},
+		{"Hereford Bull", "A_C_Bull_01", 2},
+		{"American Bullfrog", "A_C_FrogBull_01", 0},
+		{"Northern Cardinal", "A_C_Cardinal_01", 0},
+		{"American Domestic Cat", "A_C_Cat_01", 0},
+		{"Cedar Waxwing", "A_C_CedarWaxwing_01", 0},
+		{"Dominique Chicken", "A_C_Chicken_01", 0},
+		{"Dominique Rooster", "A_C_Rooster_01", 0},
+		{"Java Chicken", "A_C_Chicken_01", 2},
+		{"Java Rooster", "A_C_Rooster_01", 1},
+		{"Leghorn Chicken", "A_C_Chicken_01", 3},
+		{"Leghorn Rooster", "A_C_Rooster_01", 2},
+		{"Greater Prairie Chicken", "A_C_PrairieChicken_01", 0},
+		{"Western Chipmunk", "A_C_Chipmunk_01", 0},
+		{"Californian Condor", "A_C_CaliforniaCondor_01", 0},
+		{"Cougar", "A_C_Cougar_01", 0},
+		{"Double-crested Cormorant", "A_C_Cormorant_01", 0},
+		{"Neotropic Cormorant", "A_C_Cormorant_01", 2},
+		{"Florida Cracker Cow", "A_C_Cow", 0},
+		{"California Valley Coyote", "A_C_Coyote_01", 0},
+		{"Cuban Land Crab", "A_C_Crab_01", 0},
+		{"Red Swamp Crayfish", "A_C_Crawfish_01", 0},
+		{"Whooping Crane", "A_C_CraneWhooping_01", 0},
+		{"Sandhill Crane", "A_C_CraneWhooping_01", 1},
+		{"American Crow", "A_C_Crow_01", 0},
+		{"Standard Donkey", "A_C_Donkey_01", 0},
+		{"Mallard Duck", "A_C_Duck_01", 0},
+		{"Pekin Duck", "A_C_Duck_01", 2},
+		{"Bald Eagle", "A_C_Eagle_01", 0},
+		{"Golden Eagle", "A_C_Eagle_01", 1},
+		{"Reddish Egret", "A_C_Egret_01", 0},
+		{"Little Egret", "A_C_Egret_01", 1},
+		{"Snowy Egret", "A_C_Egret_01", 2},
+		{"Rocky Mountain Bull Elk", "A_C_Elk_01", 0},
+		{"Rocky Mountain Cow Elk", "A_C_Elk_01", 2},
+		{"American Red Fox", "A_C_Fox_01", 0},
+		{"American Gray Fox", "A_C_Fox_01", 1},
+		{"Silver Fox", "A_C_Fox_01", 2},
+		{"Banded Gila Monster", "A_C_GilaMonster_01", 0},
+		{"Alpine Goat", "A_C_Goat_01", 0},
+		{"Canada Goose", "A_C_GooseCanada_01", 0},
+		{"Ferruginous Hawk", "A_C_Hawk_01", 0},
+		{"Red-tailed Hawk", "A_C_Hawk_01", 2},
+		{"Rough-legged Hawk", "A_C_Hawk_01", 1},
+		{"Great Blue Heron", "A_C_Heron_01", 0},
+		{"Tricolored Heron", "A_C_Heron_01", 2},
+		{"Desert Iguana", "A_C_IguanaDesert_01", 0},
+		{"Green Iguana", "A_C_Iguana_01", 0},
+		{"Collared Peccary", "A_C_Javelina_01", 0},
+		{"Lion", "A_C_LionMangy_01", 0},
+		{"Common Loon", "A_C_Loon_01", 0},
+		{"Pacific Loon", "A_C_Loon_01", 2},
+		{"Yellow-billed Loon", "A_C_Loon_01", 1},
+		{"Western Bull Moose", "A_C_Moose_01", 3},
+		{"Western Moose", "A_C_Moose_01", 0},
+		{"Mule", "A_C_HORSEMULE_01", 0},
+		{"American Muskrat", "A_C_Muskrat_01", 0},
+		{"Baltimore Oriole", "A_C_Oriole_01", 0},
+		{"Hooded Oriole", "A_C_Oriole_01", 1},
+		{"Californian Horned Owl", "A_C_Owl_01", 1},
+		{"Coastal Horned Owl", "A_C_Owl_01", 2},
+		{"Great Horned Owl", "A_C_Owl_01", 0},
+		{"Angus Ox", "A_C_Ox_01", 0},
+		{"Devon Ox", "A_C_Ox_01", 2},
+		{"Panther", "A_C_Panther_01", 0},
+		{"Florida Panther", "A_C_Panther_01", 4},
+		{"Carolina Parakeet", "A_C_CarolinaParakeet_01", 0},
+		{"Blue and Yellow Macaw", "A_C_Parrot_01", 0},
+		{"Great Green Macaw", "A_C_Parrot_01", 1},
+		{"Scarlet Macaw", "A_C_Parrot_01", 2},
+		{"American White Pelican", "A_C_Pelican_01", 0},
+		{"Brown Pelican", "A_C_Pelican_01", 1},
+		{"Ring-necked Pheasant", "A_C_Pheasant_01", 0},
+		{"Chinese Ring-necked Pheasant", "A_C_Pheasant_01", 2},
+		{"Berkshire Pig", "A_C_Pig_01", 0},
+		{"Big China Pig", "A_C_Pig_01", 3},
+		{"Old Spot Pig", "A_C_Pig_01", 2},
+		{"Band-tailed Pigeon", "A_C_Pigeon", 2},
+		{"Rock Pigeon", "A_C_Pigeon", 0},
+		{"Virginia Opossum", "A_C_Possum_01", 0},
+		{"American Pronghorn Buck", "A_C_Pronghorn_01", 10},
+		{"American Pronghorn Doe", "A_C_Pronghorn_01", 0},
+		{"Sonoran Pronghorn Buck", "A_C_Pronghorn_01", 13},
+		{"Sonoran Pronghorn Doe", "A_C_Pronghorn_01", 4},
+		{"Baja California Pronghorn Buck", "A_C_Pronghorn_01", 16},
+		{"Baja California Pronghorn Doe", "A_C_Pronghorn_01", 7},
+		{"California Quail", "A_C_Quail_01", 0},
+		{"Sierra Nevada Bighorn Ram", "A_C_BigHornRam_01", 9},
+		{"Sierra Nevada Bighorn Sheep", "A_C_BigHornRam_01", 0},
+		{"Desert Bighorn Ram", "A_C_BigHornRam_01", 16},
+		{"Desert Bighorn Sheep", "A_C_BigHornRam_01", 6},
+		{"Rocky Mountain Bighorn Ram", "A_C_BigHornRam_01", 13},
+		{"Rocky Mountain Bighorn Sheep", "A_C_BigHornRam_01", 3},
+		{"Black-tailed Jackrabbit", "A_C_Rabbit_01", 0},
+		{"North American Raccoon", "A_C_Raccoon_01", 0},
+		{"Black Rat", "A_C_Rat_01", 4},
+		{"Brown Rat", "A_C_Rat_01", 0},
+		{"Western Raven", "A_C_Raven_01", 0},
+		{"Red-footed Booby", "A_C_RedFootedBooby_01", 0},
+		{"American Robin", "A_C_Robin_01", 0},
+		{"Roseate Spoonbill", "A_C_RoseateSpoonbill_01", 0},
+		{"Herring Gull", "A_C_Seagull_01", 0},
+		{"Laughing Gull", "A_C_Seagull_01", 1},
+		{"Ring-billed Gull", "A_C_Seagull_01", 2},
+		{"Merino Sheep", "A_C_Sheep_01", 0},
+		{"Striped Skunk", "A_C_Skunk_01", 0},
+		{"Red Boa Snake", "A_C_SnakeRedBoa_01", 0},
+		{"Rainbow Boa Snake", "A_C_SnakeRedBoa_01", 2},
+		{"Sunglow Boa Snake", "A_C_SnakeRedBoa_01", 1},
+		{"Diamondback Rattlesnake", "A_C_Snake_01", 0},
+		{"Fer-de-Lance Snake", "A_C_SnakeFerDeLance_01", 0},
+		{"Black-tailed Rattlesnake", "A_C_SnakeBlackTailRattle_01", 0},
+		{"Timber Rattlesnake", "A_C_Snake_01", 2},
+		{"Northern Copperhead Snake", "A_C_SnakeFerDeLance_01", 2},
+		{"Southern Copperhead Snake", "A_C_SnakeFerDeLance_01", 1},
+		{"Midland Water Snake", "A_C_SnakeWater_01", 0},
+		{"Cottonmouth Snake", "A_C_SnakeWater_01", 1},
+		{"Northern Water Snake", "A_C_SnakeWater_01", 2},
+		{"Scarlet Tanager Songbird", "A_C_SongBird_01", 1},
+		{"Western Tanager Songbird", "A_C_SongBird_01", 0},
+		{"Eurasian Tree Sparrow", "A_C_Sparrow_01", 3},
+		{"American Tree Sparrow", "A_C_Sparrow_01", 0},
+		{"Golden Crowned Sparrow", "A_C_Sparrow_01", 2},
+		{"American Red Squirrel", "A_C_Squirrel_01", 1},
+		{"Western Gray Squirrel", "A_C_Squirrel_01", 0},
+		{"Black Squirrel", "A_C_Squirrel_01", 2},
+		{"Western Toad", "A_C_Toad_01", 0},
+		{"Sonoran Desert Toad", "A_C_Toad_01", 3},
+		{"Eastern Wild Turkey", "A_C_Turkey_01", 0},
+		{"Rio Grande Wild Turkey", "A_C_TurkeyWild_01", 0},
+		{"Alligator Snapping Turtle", "A_C_TurtleSnapping_01", 0},
+		{"Eastern Turkey Vulture", "A_C_Vulture_01", 4},
+		{"Western Turkey Vulture", "A_C_Vulture_01", 0},
+		{"Gray Wolf", "A_C_Wolf", 0},
+		{"Timber Wolf", "A_C_Wolf_Medium", 0},
+		{"Gray Wolf (small)", "A_C_Wolf_Small", 0},
+		{"Red-bellied Woodpecker", "A_C_Woodpecker_01", 0},
+		{"Pileated Woodpecker", "A_C_Woodpecker_02", 0}
+	};
+
+	// dogs data (parsed from animals.txt - lines 382-408)
+	static std::vector<Dog> g_Dogs = {
+		{"American Foxhound", "A_C_DOGAMERICANFOXHOUND_01", 0},
+		{"Australian Shepherd", "A_C_DOGAUSTRALIANSHEPERD_01", 0},
+		{"Bluetick Coonhound", "A_C_DOGBLUETICKCOONHOUND_01", 0},
+		{"Catahoula Cur", "A_C_DOGCATAHOULACUR_01", 0},
+		{"Ches Bay Retriever", "A_C_DOGCHESBAYRETRIEVER_01", 0},
+		{"Hobo", "A_C_DOGHOBO_01", 0},
+		{"Hound", "A_C_DOGHOUND_01", 0},
+		{"Husky", "A_C_DOGHUSKY_01", 0},
+		{"Labrador", "A_C_DOGLAB_01", 0},
+		{"Lion (dog)", "A_C_DOGLION_01", 0},
+		{"Poodle", "A_C_DOGPOODLE_01", 0},
+		{"Rough Collie", "A_C_DOGCOLLIE_01", 0},
+		{"Rufus", "A_C_DOGRUFUS_01", 0},
+		{"Street", "A_C_DOGSTREET_01", 0}
+	};
 
 	static void RenderAnimalsView()
 	{
