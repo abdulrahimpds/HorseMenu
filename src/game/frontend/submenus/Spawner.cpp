@@ -53,6 +53,9 @@ namespace YimMenu::Submenus
 	// horse gender selection (1 = female, 0 = male)
 	static int g_HorseGender = 0;
 
+	// global set model checkbox state for all navigation menus
+	static bool g_SetModelMode = false;
+
 	// shared variables for ped spawning
 	static std::string g_PedModelBuffer;
 	static bool g_Dead, g_Invis, g_Godmode, g_Freeze, g_Companion, g_Sedated, g_Armed;
@@ -260,6 +263,10 @@ namespace YimMenu::Submenus
 		// render search bar with count display and optional gender selection for horses
 		void RenderSearchBar(const std::string& placeholder, int totalItems, int visibleItems, bool showGenderSelection = false)
 		{
+			// get available width for proper alignment
+			ImVec2 contentRegion = ImGui::GetContentRegionAvail();
+			float setModelCheckboxWidth = 100.0f; // approximate width for "Set Model" checkbox
+
 			// consistent search bar size for all sections (accommodate gender buttons when needed)
 			ImGui::SetNextItemWidth(200.0f);
 			InputTextWithHint(("##search_" + placeholder).c_str(), placeholder.c_str(), &searchBuffer).Draw();
@@ -274,6 +281,18 @@ namespace YimMenu::Submenus
 				ImGui::SameLine();
 				ImGui::RadioButton("Female", &g_HorseGender, 1);
 			}
+
+			// set model checkbox aligned to the very right
+			ImGui::SameLine();
+			float currentX = ImGui::GetCursorPosX();
+			float targetX = contentRegion.x - setModelCheckboxWidth;
+			if (targetX > currentX)
+			{
+				ImGui::SetCursorPosX(targetX);
+			}
+			ImGui::Checkbox("Set Model", &g_SetModelMode);
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip("When checked, clicking spawn buttons will change your player model instead of spawning");
 
 			if (searchBuffer.empty())
 			{
@@ -302,6 +321,52 @@ namespace YimMenu::Submenus
 	static SearchHelper<void> g_HumanSearch;  // placeholder for future use
 	static SearchHelper<void> g_HorseSearch;  // placeholder for future use
 	static SearchHelper<void> g_FishSearch;   // placeholder for future use
+
+	// forward declaration
+	static void SetHorseGender(Ped horse, int gender);
+
+	// function to set player model (based on existing "Set Model" button logic)
+	static void SetPlayerModel(const std::string& model, int variation = 0, bool isHorse = false)
+	{
+		FiberPool::Push([model, variation, isHorse] {
+			auto modelHash = Joaat(model);
+
+			for (int i = 0; i < 30 && !STREAMING::HAS_MODEL_LOADED(modelHash); i++)
+			{
+				STREAMING::REQUEST_MODEL(modelHash, false);
+				ScriptMgr::Yield();
+			}
+
+			PLAYER::SET_PLAYER_MODEL(Self::GetPlayer().GetId(), modelHash, false);
+			Self::Update();
+
+			if (variation > 0)
+				Self::GetPed().SetVariation(variation);
+			else
+				PED::_SET_RANDOM_OUTFIT_VARIATION(Self::GetPed().GetHandle(), true);
+
+			// track model and variation for automatic session fix
+			Hooks::Info::UpdateStoredPlayerModel(modelHash, variation);
+
+			// apply horse gender if this is a horse (after variation is set)
+			if (isHorse)
+			{
+				SetHorseGender(Self::GetPed(), g_HorseGender);
+			}
+
+			// give weapon if armed is enabled and ped is not an animal
+			if (g_Armed && !Self::GetPed().IsAnimal())
+			{
+				auto weapon = GetDefaultWeaponForPed(model);
+				WEAPON::GIVE_WEAPON_TO_PED(Self::GetPed().GetHandle(), Joaat(weapon), 100, true, false, 0, true, 0.5f, 1.0f, 0x2CD419DC, true, 0.0f, false);
+				WEAPON::SET_PED_INFINITE_AMMO(Self::GetPed().GetHandle(), true, Joaat(weapon));
+				ScriptMgr::Yield();
+				WEAPON::SET_CURRENT_PED_WEAPON(Self::GetPed().GetHandle(), "WEAPON_UNARMED"_J, true, 0, false, false);
+			}
+
+			STREAMING::SET_MODEL_AS_NO_LONGER_NEEDED(modelHash);
+		});
+	}
 
 	// function to set horse gender using discovered community natives
 	static void SetHorseGender(Ped horse, int gender)
@@ -841,7 +906,14 @@ namespace YimMenu::Submenus
 	// convenience wrapper for animal spawning (no weapons)
 	static void SpawnAnimal(const std::string& model, int variation, bool isHorse = false)
 	{
-		SpawnPed(model, variation, false, false, isHorse);
+		if (g_SetModelMode)
+		{
+			SetPlayerModel(model, variation, isHorse);
+		}
+		else
+		{
+			SpawnPed(model, variation, false, false, isHorse);
+		}
 	}
 
 	static void RenderHumansView()
@@ -2380,7 +2452,14 @@ namespace YimMenu::Submenus
 		// action buttons
 		if (ImGui::Button("Spawn"))
 		{
-			SpawnPed(g_PedModelBuffer, g_Variation, true); // true = give weapon if armed is enabled
+			if (g_SetModelMode)
+			{
+				SetPlayerModel(g_PedModelBuffer, g_Variation, false);
+			}
+			else
+			{
+				SpawnPed(g_PedModelBuffer, g_Variation, true); // true = give weapon if armed is enabled
+			}
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Set Model"))
