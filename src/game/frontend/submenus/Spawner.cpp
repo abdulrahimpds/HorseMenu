@@ -2323,6 +2323,48 @@ namespace YimMenu::Submenus
 		}
 	}
 
+	// fish data structures
+	struct Fish
+	{
+		std::string name;
+		std::string model;
+		int variation;
+	};
+
+	static std::vector<Fish> g_Fishes = {
+		{"Bluegill", "A_C_FishBluegil_01_sm", 0},
+		{"Chain Pickerel", "A_C_FishChainPickerel_01_sm", 0},
+		{"Redfin Pickerel", "A_C_FishRedfinPickerel_01_sm", 0},
+		{"Rock Bass", "A_C_FishRockBass_01_sm", 0},
+		{"Smallmouth Bass", "A_C_FishSmallMouthBass_01_ms", 0},
+		{"Bullhead Catfish", "A_C_FishBullHeadCat_01_sm", 0},
+		{"Perch", "A_C_FishPerch_01_sm", 0},
+		{"Lake Sturgeon", "A_C_FishLakeSturgeon_01_lg", 0},
+		{"Largemouth Bass", "A_C_FishLargeMouthBass_01_ms", 0},
+		{"Steelhead Trout", "A_C_FishRainbowTrout_01_ms", 0},
+		{"Channel Catfish", "A_C_FishChannelCatfish_01_lg", 0},
+		{"Longnose Gar", "A_C_FishLongNoseGar_01_lg", 0},
+		{"Muskie", "A_C_FishMuskie_01_lg", 0},
+		{"Northern Pike", "A_C_FishNorthernPike_01_lg", 0},
+		{"Sockeye Salmon", "A_C_FishSalmonSockeye_01_ms", 0},
+		// legendary Fishes
+		{"Legendary Bluegill", "A_C_FishBluegil_01_ms", 1},
+		{"Legendary Chain Pickerel", "A_C_FishChainPickerel_01_ms", 1},
+		{"Legendary Bullhead Catfish", "A_C_FishBullHeadCat_01_ms", 1},
+		{"Legendary Redfin Pickerel", "A_C_FishRedfinPickerel_01_ms", 1},
+		{"Legendary Rock Bass", "A_C_FishRockBass_01_ms", 1},
+		{"Legendary Smallmouth Bass", "A_C_FishSmallMouthBass_01_lg", 1},
+		{"Legendary Perch", "A_C_FishPerch_01_ms", 1},
+		{"Legendary Lake Sturgeon", "A_C_FishLakeSturgeon_01_lg", 1},
+		{"Legendary Largemouth Bass", "A_C_FishLargeMouthBass_01_lg", 1},
+		{"Legendary Steelhead Trout", "A_C_FishRainbowTrout_01_lg", 1},
+		{"Legendary Channel Catfish", "A_C_FishChannelCatfish_01_lg", 1},
+		{"Legendary Longnose Gar", "A_C_FishLongNoseGar_01_lg", 3},
+		{"Legendary Muskie", "A_C_FishMuskie_01_lg", 2},
+		{"Legendary Northern Pike", "A_C_FishNorthernPike_01_lg", 3},
+		{"Legendary Sockeye Salmon", "A_C_FishSalmonSockeye_01_lg", 1},
+	};
+
 	static void RenderFishesView()
 	{
 		// back button in top-right corner
@@ -2338,10 +2380,39 @@ namespace YimMenu::Submenus
 		// reset cursor to original position and add some top margin
 		ImGui::SetCursorPos(ImVec2(originalPos.x, originalPos.y + 35));
 
-		// placeholder content for fishes
-		ImGui::Text("Fishes - Coming Soon");
-		ImGui::Separator();
-		ImGui::Text("This will contain fish species and spawning options.");
+		// lambda functions for getting names
+		auto getFishName = [](const Fish& fish) { return fish.name; };
+
+		// count visible fishes based on search
+		int totalFishes = static_cast<int>(g_Fishes.size());
+		int visibleFishes = g_FishSearch.searchBuffer.empty() ? totalFishes :
+		                   g_FishSearch.CountMatches(g_Fishes, g_FishSearch.searchBuffer, getFishName);
+
+		// render search bar with count
+		g_FishSearch.RenderSearchBar("Search Fishes", totalFishes, visibleFishes);
+
+		// render all fishes in a simple flat list
+		for (size_t i = 0; i < g_Fishes.size(); ++i)
+		{
+			const auto& fish = g_Fishes[i];
+			if (g_FishSearch.ShouldShowItem(fish, false, getFishName))
+			{
+				// use unique ID based on model name and index to handle duplicate display names
+				ImGui::PushID((fish.model + "_" + std::to_string(i)).c_str());
+				if (ImGui::Button(fish.name.c_str(), ImVec2(-1, 25)))
+				{
+					SpawnAnimal(fish.model, fish.variation);
+				}
+				ImGui::PopID();
+			}
+		}
+
+		// show helpful message when no matches found
+		if (visibleFishes == 0 && !g_FishSearch.searchBuffer.empty())
+		{
+			ImGui::Text("No fishes match your search");
+			ImGui::Text("Try searching for: 'bass', 'trout', 'salmon', 'legendary', etc.");
+		}
 	}
 
 	static void RenderPedsRootView()
