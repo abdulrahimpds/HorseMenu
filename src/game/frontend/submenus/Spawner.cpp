@@ -1284,14 +1284,18 @@ namespace YimMenu::Submenus
 		if (showAmericanPaint)
 		{
 			RenderCenteredSeparator("American Paint");
-			for (const auto& horse : g_AmericanPaintHorses)
+			for (size_t i = 0; i < g_AmericanPaintHorses.size(); ++i)
 			{
+				const auto& horse = g_AmericanPaintHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, americanPaintMatches, getHorseName))
 				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("AmericanPaint_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1301,14 +1305,18 @@ namespace YimMenu::Submenus
 		if (showAmericanStandardbred)
 		{
 			RenderCenteredSeparator("American Standardbred");
-			for (const auto& horse : g_AmericanStandardbredHorses)
+			for (size_t i = 0; i < g_AmericanStandardbredHorses.size(); ++i)
 			{
+				const auto& horse = g_AmericanStandardbredHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, americanStandardbredMatches, getHorseName))
 				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("AmericanStandardbred_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1318,14 +1326,18 @@ namespace YimMenu::Submenus
 		if (showAndalusian)
 		{
 			RenderCenteredSeparator("Andalusian");
-			for (const auto& horse : g_AndalusianHorses)
+			for (size_t i = 0; i < g_AndalusianHorses.size(); ++i)
 			{
+				const auto& horse = g_AndalusianHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, andalusianMatches, getHorseName))
 				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("Andalusian_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1335,14 +1347,18 @@ namespace YimMenu::Submenus
 		if (showAppaloosa)
 		{
 			RenderCenteredSeparator("Appaloosa");
-			for (const auto& horse : g_AppaloosaHorses)
+			for (size_t i = 0; i < g_AppaloosaHorses.size(); ++i)
 			{
+				const auto& horse = g_AppaloosaHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, appaloosaMatches, getHorseName))
 				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("Appaloosa_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1352,14 +1368,18 @@ namespace YimMenu::Submenus
 		if (showArabian)
 		{
 			RenderCenteredSeparator("Arabian");
-			for (const auto& horse : g_ArabianHorses)
+			for (size_t i = 0; i < g_ArabianHorses.size(); ++i)
 			{
+				const auto& horse = g_ArabianHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, arabianMatches, getHorseName))
 				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("Arabian_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1369,14 +1389,18 @@ namespace YimMenu::Submenus
 		if (showArdennes)
 		{
 			RenderCenteredSeparator("Ardennes");
-			for (const auto& horse : g_ArdennesHorses)
+			for (size_t i = 0; i < g_ArdennesHorses.size(); ++i)
 			{
+				const auto& horse = g_ArdennesHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, ardennesMatches, getHorseName))
 				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("Ardennes_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1386,14 +1410,18 @@ namespace YimMenu::Submenus
 		if (showBelgian)
 		{
 			RenderCenteredSeparator("Belgian");
-			for (const auto& horse : g_BelgianHorses)
+			for (size_t i = 0; i < g_BelgianHorses.size(); ++i)
 			{
+				const auto& horse = g_BelgianHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, belgianMatches, getHorseName))
 				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("Belgian_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1403,14 +1431,18 @@ namespace YimMenu::Submenus
 		if (showBreton)
 		{
 			RenderCenteredSeparator("Breton");
-			for (const auto& horse : g_BretonHorses)
+			for (size_t i = 0; i < g_BretonHorses.size(); ++i)
 			{
+				const auto& horse = g_BretonHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, bretonMatches, getHorseName))
 				{
+					// use unique ID based on model name and index to handle duplicate display names
+					ImGui::PushID(("Breton_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1420,14 +1452,18 @@ namespace YimMenu::Submenus
 		if (showCriollo)
 		{
 			RenderCenteredSeparator("Criollo");
-			for (const auto& horse : g_CriolloHorses)
+			for (size_t i = 0; i < g_CriolloHorses.size(); ++i)
 			{
+				const auto& horse = g_CriolloHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, criolloMatches, getHorseName))
 				{
+					// use unique ID based on model name and index to handle duplicate display names
+					ImGui::PushID(("Criollo_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1437,14 +1473,18 @@ namespace YimMenu::Submenus
 		if (showDutchWarmblood)
 		{
 			RenderCenteredSeparator("Dutch Warmblood");
-			for (const auto& horse : g_DutchWarmbloodHorses)
+			for (size_t i = 0; i < g_DutchWarmbloodHorses.size(); ++i)
 			{
+				const auto& horse = g_DutchWarmbloodHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, dutchWarmbloodMatches, getHorseName))
 				{
+					// use unique ID based on model name and index to handle duplicate display names
+					ImGui::PushID(("DutchWarmblood_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1454,14 +1494,18 @@ namespace YimMenu::Submenus
 		if (showGang)
 		{
 			RenderCenteredSeparator("Gang");
-			for (const auto& horse : g_GangHorses)
+			for (size_t i = 0; i < g_GangHorses.size(); ++i)
 			{
+				const auto& horse = g_GangHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, gangMatches, getHorseName))
 				{
+					// use unique ID based on model name and index to handle duplicate display names
+					ImGui::PushID(("Gang_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1471,14 +1515,18 @@ namespace YimMenu::Submenus
 		if (showGypsyCob)
 		{
 			RenderCenteredSeparator("Gypsy Cob");
-			for (const auto& horse : g_GypsyCobHorses)
+			for (size_t i = 0; i < g_GypsyCobHorses.size(); ++i)
 			{
+				const auto& horse = g_GypsyCobHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, gypsyCobMatches, getHorseName))
 				{
+					// use unique ID based on model name and index to handle duplicate display names
+					ImGui::PushID(("GypsyCob_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1488,14 +1536,18 @@ namespace YimMenu::Submenus
 		if (showHungarianHalfbred)
 		{
 			RenderCenteredSeparator("Hungarian Halfbred");
-			for (const auto& horse : g_HungarianHalfbredHorses)
+			for (size_t i = 0; i < g_HungarianHalfbredHorses.size(); ++i)
 			{
+				const auto& horse = g_HungarianHalfbredHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, hungarianHalfbredMatches, getHorseName))
 				{
+					// use unique ID based on model name and index to handle duplicate display names
+					ImGui::PushID(("HungarianHalfbred_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1505,14 +1557,18 @@ namespace YimMenu::Submenus
 		if (showKentuckySaddler)
 		{
 			RenderCenteredSeparator("Kentucky Saddler");
-			for (const auto& horse : g_KentuckySaddlerHorses)
+			for (size_t i = 0; i < g_KentuckySaddlerHorses.size(); ++i)
 			{
+				const auto& horse = g_KentuckySaddlerHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, kentuckySaddlerMatches, getHorseName))
 				{
+					// use unique ID based on model name and index to handle duplicate display names
+					ImGui::PushID(("KentuckySaddler_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1522,14 +1578,18 @@ namespace YimMenu::Submenus
 		if (showKlardruber)
 		{
 			RenderCenteredSeparator("Klardruber");
-			for (const auto& horse : g_KlardruberHorses)
+			for (size_t i = 0; i < g_KlardruberHorses.size(); ++i)
 			{
+				const auto& horse = g_KlardruberHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, klardruberMatches, getHorseName))
 				{
+					// use unique ID based on model name and index to handle duplicate display names
+					ImGui::PushID(("Klardruber_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1539,14 +1599,18 @@ namespace YimMenu::Submenus
 		if (showMissouriFoxTrotter)
 		{
 			RenderCenteredSeparator("Missouri Fox Trotter");
-			for (const auto& horse : g_MissouriFoxTrotterHorses)
+			for (size_t i = 0; i < g_MissouriFoxTrotterHorses.size(); ++i)
 			{
+				const auto& horse = g_MissouriFoxTrotterHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, missouriFoxTrotterMatches, getHorseName))
 				{
+					// use unique ID based on model name and index to handle duplicate display names
+					ImGui::PushID(("MissouriFoxTrotter_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1556,14 +1620,18 @@ namespace YimMenu::Submenus
 		if (showMorgan)
 		{
 			RenderCenteredSeparator("Morgan");
-			for (const auto& horse : g_MorganHorses)
+			for (size_t i = 0; i < g_MorganHorses.size(); ++i)
 			{
+				const auto& horse = g_MorganHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, morganMatches, getHorseName))
 				{
+					// use unique ID based on model name and index to handle duplicate display names
+					ImGui::PushID(("Morgan_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1573,14 +1641,18 @@ namespace YimMenu::Submenus
 		if (showMustang)
 		{
 			RenderCenteredSeparator("Mustang");
-			for (const auto& horse : g_MustangHorses)
+			for (size_t i = 0; i < g_MustangHorses.size(); ++i)
 			{
+				const auto& horse = g_MustangHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, mustangMatches, getHorseName))
 				{
+					// use unique ID based on model name and index to handle duplicate display names
+					ImGui::PushID(("Mustang_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1590,14 +1662,18 @@ namespace YimMenu::Submenus
 		if (showNokota)
 		{
 			RenderCenteredSeparator("Nokota");
-			for (const auto& horse : g_NokotaHorses)
+			for (size_t i = 0; i < g_NokotaHorses.size(); ++i)
 			{
+				const auto& horse = g_NokotaHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, nokotaMatches, getHorseName))
 				{
+					// use unique ID based on model name and index to handle duplicate display names
+					ImGui::PushID(("Nokota_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1607,14 +1683,18 @@ namespace YimMenu::Submenus
 		if (showNorfolkRoadster)
 		{
 			RenderCenteredSeparator("Norfolk Roadster");
-			for (const auto& horse : g_NorfolkRoadsterHorses)
+			for (size_t i = 0; i < g_NorfolkRoadsterHorses.size(); ++i)
 			{
+				const auto& horse = g_NorfolkRoadsterHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, norfolkRoadsterMatches, getHorseName))
 				{
+					// use unique ID based on model name and index to handle duplicate display names
+					ImGui::PushID(("NorfolkRoadster_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1624,14 +1704,18 @@ namespace YimMenu::Submenus
 		if (showShire)
 		{
 			RenderCenteredSeparator("Shire");
-			for (const auto& horse : g_ShireHorses)
+			for (size_t i = 0; i < g_ShireHorses.size(); ++i)
 			{
+				const auto& horse = g_ShireHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, shireMatches, getHorseName))
 				{
+					// use unique ID based on model name and index to handle duplicate display names
+					ImGui::PushID(("Shire_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1641,14 +1725,18 @@ namespace YimMenu::Submenus
 		if (showSuffolkPunch)
 		{
 			RenderCenteredSeparator("Suffolk Punch");
-			for (const auto& horse : g_SuffolkPunchHorses)
+			for (size_t i = 0; i < g_SuffolkPunchHorses.size(); ++i)
 			{
+				const auto& horse = g_SuffolkPunchHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, suffolkPunchMatches, getHorseName))
 				{
+					// use unique ID based on model name and index to handle duplicate display names
+					ImGui::PushID(("SuffolkPunch_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1658,14 +1746,18 @@ namespace YimMenu::Submenus
 		if (showTennesseeWalker)
 		{
 			RenderCenteredSeparator("Tennessee Walker");
-			for (const auto& horse : g_TennesseeWalkerHorses)
+			for (size_t i = 0; i < g_TennesseeWalkerHorses.size(); ++i)
 			{
+				const auto& horse = g_TennesseeWalkerHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, tennesseeWalkerMatches, getHorseName))
 				{
+					// use unique ID based on model name and index to handle duplicate display names
+					ImGui::PushID(("TennesseeWalker_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1675,14 +1767,18 @@ namespace YimMenu::Submenus
 		if (showThoroughbred)
 		{
 			RenderCenteredSeparator("Thoroughbred");
-			for (const auto& horse : g_ThoroughbredHorses)
+			for (size_t i = 0; i < g_ThoroughbredHorses.size(); ++i)
 			{
+				const auto& horse = g_ThoroughbredHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, thoroughbredMatches, getHorseName))
 				{
+					// use unique ID based on model name and index to handle duplicate display names
+					ImGui::PushID(("Thoroughbred_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1692,14 +1788,18 @@ namespace YimMenu::Submenus
 		if (showTurkoman)
 		{
 			RenderCenteredSeparator("Turkoman");
-			for (const auto& horse : g_TurkomanHorses)
+			for (size_t i = 0; i < g_TurkomanHorses.size(); ++i)
 			{
+				const auto& horse = g_TurkomanHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, turkomanMatches, getHorseName))
 				{
+					// use unique ID based on model name and index to handle duplicate display names
+					ImGui::PushID(("Turkoman_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1709,14 +1809,18 @@ namespace YimMenu::Submenus
 		if (showMiscellaneous)
 		{
 			RenderCenteredSeparator("Miscellaneous");
-			for (const auto& horse : g_MiscellaneousHorses)
+			for (size_t i = 0; i < g_MiscellaneousHorses.size(); ++i)
 			{
+				const auto& horse = g_MiscellaneousHorses[i];
 				if (g_HorseSearch.ShouldShowItem(horse, miscellaneousMatches, getHorseName))
 				{
+					// use unique ID based on model name and index to handle duplicate display names
+					ImGui::PushID(("Miscellaneous_" + horse.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(horse.model, horse.variation, true);
 					}
+					ImGui::PopID();
 				}
 			}
 			ImGui::Spacing();
@@ -1794,7 +1898,7 @@ namespace YimMenu::Submenus
 		{"Mud Runner Buck", "MP_A_C_Buck_01", 2},
 		{"Snow Buck", "MP_A_C_Buck_01", 3},
 		{"Shadow Buck", "MP_A_C_Buck_01", 4},
-		{"Tatanka Bison (Online)", "MP_A_C_Buffalo_01", 0},
+		{"Tatanka Bison", "MP_A_C_Buffalo_01", 0},
 		{"Winyan Bison", "MP_A_C_Buffalo_01", 1},
 		{"Payta Bison", "MP_A_C_Buffalo_01", 2},
 		{"Iguga Cougar", "MP_A_C_Cougar_01", 0},
@@ -2075,14 +2179,18 @@ namespace YimMenu::Submenus
 		{
 			RenderCenteredSeparator("Legendary Animals");
 
-			for (const auto& animal : g_LegendaryAnimals)
+			for (size_t i = 0; i < g_LegendaryAnimals.size(); ++i)
 			{
+				const auto& animal = g_LegendaryAnimals[i];
 				if (g_AnimalSearch.ShouldShowItem(animal, legendaryMatches, getLegendaryName))
 				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("LegendaryAnimals_" + animal.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(animal.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(animal.model, animal.variation);
 					}
+					ImGui::PopID();
 				}
 			}
 
@@ -2094,14 +2202,18 @@ namespace YimMenu::Submenus
 		{
 			RenderCenteredSeparator("Regular Animals");
 
-			for (const auto& animal : g_RegularAnimals)
+			for (size_t i = 0; i < g_RegularAnimals.size(); ++i)
 			{
+				const auto& animal = g_RegularAnimals[i];
 				if (g_AnimalSearch.ShouldShowItem(animal, regularMatches, getRegularName))
 				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("RegularAnimals_" + animal.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(animal.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(animal.model, animal.variation);
 					}
+					ImGui::PopID();
 				}
 			}
 
@@ -2113,14 +2225,18 @@ namespace YimMenu::Submenus
 		{
 			RenderCenteredSeparator("Dogs");
 
-			for (const auto& dog : g_Dogs)
+			for (size_t i = 0; i < g_Dogs.size(); ++i)
 			{
+				const auto& dog = g_Dogs[i];
 				if (g_AnimalSearch.ShouldShowItem(dog, dogMatches, getDogName))
 				{
+					// use unique ID based on model name and index to handle duplicate display names
+					ImGui::PushID((dog.model + "_" + std::to_string(i)).c_str());
 					if (ImGui::Button(dog.name.c_str(), ImVec2(-1, 25)))
 					{
 						SpawnAnimal(dog.model, dog.variation);
 					}
+					ImGui::PopID();
 				}
 			}
 
