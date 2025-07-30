@@ -50,6 +50,9 @@ namespace YimMenu::Submenus
 	static bool g_InAnimals = false;
 	static bool g_InFishes = false;
 
+	// horse gender selection (1 = female, 0 = male)
+	static int g_HorseGender = 0;
+
 	// shared variables for ped spawning
 	static std::string g_PedModelBuffer;
 	static bool g_Dead, g_Invis, g_Godmode, g_Freeze, g_Companion, g_Sedated, g_Armed;
@@ -254,10 +257,23 @@ namespace YimMenu::Submenus
 			return count;
 		}
 
-		// render search bar with count display
-		void RenderSearchBar(const std::string& placeholder, int totalItems, int visibleItems)
+		// render search bar with count display and optional gender selection for horses
+		void RenderSearchBar(const std::string& placeholder, int totalItems, int visibleItems, bool showGenderSelection = false)
 		{
+			// consistent search bar size for all sections (accommodate gender buttons when needed)
+			ImGui::SetNextItemWidth(200.0f);
 			InputTextWithHint(("##search_" + placeholder).c_str(), placeholder.c_str(), &searchBuffer).Draw();
+
+			// gender radio buttons for horses (on same line as search bar)
+			if (showGenderSelection)
+			{
+				ImGui::SameLine();
+				ImGui::Text("Gender:");
+				ImGui::SameLine();
+				ImGui::RadioButton("Male", &g_HorseGender, 0);
+				ImGui::SameLine();
+				ImGui::RadioButton("Female", &g_HorseGender, 1);
+			}
 
 			if (searchBuffer.empty())
 			{
@@ -287,10 +303,52 @@ namespace YimMenu::Submenus
 	static SearchHelper<void> g_HorseSearch;  // placeholder for future use
 	static SearchHelper<void> g_FishSearch;   // placeholder for future use
 
-	// unified ped spawning function - used by all spawn buttons
-	static void SpawnPed(const std::string& model, int variation, bool giveWeapon = false, bool isStoryGang = false)
+	// function to set horse gender using discovered community natives
+	static void SetHorseGender(Ped horse, int gender)
 	{
-		FiberPool::Push([model, variation, giveWeapon, isStoryGang] {
+		if (!horse || !horse.IsValid())
+			return;
+
+		bool isFemale = (gender == 1);
+
+		// using discovered native from community: 0x5653AB26C82938CF (_SET_PED_FACE_FEATURE)
+		// with specific horse gender index 0xA28B from RDR3 face features.txt
+		// 0xA28B - horse gender (1.0 = female, 0.0 = male)
+
+		try {
+			// mark gender with decorator for tracking
+			DECORATOR::DECOR_SET_BOOL(horse.GetHandle(), "SH_HORSE_MALE", !isFemale);
+
+			// use the correct horse gender face feature index
+			auto invoker = YimMenu::NativeInvoker{};
+
+			// call _SET_PED_FACE_FEATURE with the correct horse gender index
+			invoker.BeginCall();
+			invoker.PushArg(horse.GetHandle());
+			invoker.PushArg(0xA28B); // horse gender index from RDR3 face features.txt
+			invoker.PushArg(isFemale ? 1.0f : 0.0f); // 0.0 = male, 1.0 = female
+			Pointers.GetNativeHandler(0x5653AB26C82938CF)(&invoker.m_CallContext);
+
+			// reset ped customization as recommended in discovered_natives_by_community.txt
+			// 0xCC8CA3E88256E58F with parameters: ped, false, true, true, true, false
+			invoker.BeginCall();
+			invoker.PushArg(horse.GetHandle());
+			invoker.PushArg(false);
+			invoker.PushArg(true);
+			invoker.PushArg(true);
+			invoker.PushArg(true);
+			invoker.PushArg(false);
+			Pointers.GetNativeHandler(0xCC8CA3E88256E58F)(&invoker.m_CallContext);
+
+		} catch (...) {
+			// if any approach fails, continue without crashing
+		}
+	}
+
+	// unified ped spawning function - used by all spawn buttons
+	static void SpawnPed(const std::string& model, int variation, bool giveWeapon = false, bool isStoryGang = false, bool isHorse = false)
+	{
+		FiberPool::Push([model, variation, giveWeapon, isStoryGang, isHorse] {
 			auto ped = Ped::Create(Joaat(model), Self::GetPed().GetPosition());
 
 			if (!ped)
@@ -492,6 +550,12 @@ namespace YimMenu::Submenus
 
 			// apply variation
 			ped.SetVariation(variation);
+
+			// apply horse gender if this is a horse (AFTER variation is set)
+			if (isHorse)
+			{
+				SetHorseGender(ped, g_HorseGender);
+			}
 
 			// give weapon if requested and ped is not an animal
 			if (giveWeapon && g_Armed && !ped.IsAnimal())
@@ -775,9 +839,9 @@ namespace YimMenu::Submenus
 	}
 
 	// convenience wrapper for animal spawning (no weapons)
-	static void SpawnAnimal(const std::string& model, int variation)
+	static void SpawnAnimal(const std::string& model, int variation, bool isHorse = false)
 	{
-		SpawnPed(model, variation, false);
+		SpawnPed(model, variation, false, false, isHorse);
 	}
 
 	static void RenderHumansView()
@@ -1213,8 +1277,8 @@ namespace YimMenu::Submenus
 		                  morganVisible + mustangVisible + nokotaVisible + norfolkRoadsterVisible + shireVisible + suffolkPunchVisible +
 		                  tennesseeWalkerVisible + thoroughbredVisible + turkomanVisible + miscellaneousVisible;
 
-		// render search bar with count
-		g_HorseSearch.RenderSearchBar("Search Horses", totalHorses, totalVisible);
+		// render search bar with count and gender selection
+		g_HorseSearch.RenderSearchBar("Search Horses", totalHorses, totalVisible, true);
 
 		// american paint section
 		if (showAmericanPaint)
@@ -1226,7 +1290,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1243,7 +1307,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1260,7 +1324,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1277,7 +1341,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1294,7 +1358,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1311,7 +1375,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1328,7 +1392,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1345,7 +1409,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1362,7 +1426,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1379,7 +1443,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1396,7 +1460,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1413,7 +1477,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1430,7 +1494,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1447,7 +1511,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1464,7 +1528,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1481,7 +1545,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1498,7 +1562,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1515,7 +1579,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1532,7 +1596,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1549,7 +1613,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1566,7 +1630,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1583,7 +1647,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1600,7 +1664,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1617,7 +1681,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1634,7 +1698,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
@@ -1651,7 +1715,7 @@ namespace YimMenu::Submenus
 				{
 					if (ImGui::Button(horse.name.c_str(), ImVec2(-1, 25)))
 					{
-						SpawnAnimal(horse.model, horse.variation);
+						SpawnAnimal(horse.model, horse.variation, true);
 					}
 				}
 			}
