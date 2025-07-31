@@ -583,29 +583,8 @@ namespace YimMenu::Submenus
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 133, false); // CA_DISABLE_BLANK_SHOTS
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 134, false); // CA_0xA78BB3BD
 
-				// === RELATIONSHIPS & HOSTILITY ===
-				// set NO_RELATIONSHIP as requested (but NOT for Story Gang members)
-				if (isStoryGang)
-				{
-					PED::SET_PED_ACCURACY(ped.GetHandle(), 95);
-
-					// mark as Story Gang member for maintenance loop
-					DECORATOR::DECOR_SET_INT(ped.GetHandle(), "SH_STORY_GANG", 1);
-
-					// story gang relationship setup
-					Hash storyGangRelationshipGroup = "REL_GANG_DUTCHS"_J; // use Dutch's gang relationship group
-
-					// set up shared gang relationships (companion mode can override this)
-					PED::SET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle(), storyGangRelationshipGroup);
-
-					// make gang members friendly with each other (critical for preventing infighting)
-					PED::SET_RELATIONSHIP_BETWEEN_GROUPS(0, storyGangRelationshipGroup, storyGangRelationshipGroup);
-				}
-				else
-				{
-					PED::SET_PED_ACCURACY(ped.GetHandle(), 85);
-					PED::SET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle(), Joaat("NO_RELATIONSHIP"));
-				}
+				PED::SET_PED_ACCURACY(ped.GetHandle(), 85);
+				PED::SET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle(), Joaat("NO_RELATIONSHIP"));
 			}
 
 			ped.SetVisible(!g_Invis);
@@ -887,18 +866,49 @@ namespace YimMenu::Submenus
 				PED::SET_PED_COMBAT_RANGE(ped.GetHandle(), 2); // medium range combat
 				PED::SET_PED_COMBAT_MOVEMENT(ped.GetHandle(), 2); // aggressive movement
 				PED::SET_PED_COMBAT_ABILITY(ped.GetHandle(), 2); // professional combat ability
-				if (isStoryGang)
-				{
-					PED::SET_PED_ACCURACY(ped.GetHandle(), 95); // legendary combat ability
-				}
-				else
-				{
-					PED::SET_PED_ACCURACY(ped.GetHandle(), 85); // high accuracy
-				}
+
+				PED::SET_PED_ACCURACY(ped.GetHandle(), 85); // high accuracy
 				
 				// create companion blip for tracking
 				auto blip = MAP::BLIP_ADD_FOR_ENTITY("BLIP_STYLE_COMPANION"_J, ped.GetHandle());
 				MAP::BLIP_ADD_MODIFIER(blip, "BLIP_MODIFIER_COMPANION_DOG"_J);
+			}
+
+			if (isStoryGang)
+			{
+				PED::SET_PED_ACCURACY(ped.GetHandle(), 95);
+
+				if (!g_Companion)
+				{
+					// mark as Story Gang member for maintenance loop
+					DECORATOR::DECOR_SET_INT(ped.GetHandle(), "SH_STORY_GANG", 1);
+
+					// story gang relationship setup
+					Hash storyGangRelationshipGroup = "REL_GANG_DUTCHS"_J; // use Dutch's gang relationship group
+
+					// set up shared gang relationships (companion mode can override this)
+					PED::SET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle(), storyGangRelationshipGroup);
+
+					// make gang members friendly with each other (critical for preventing infighting)
+					PED::SET_RELATIONSHIP_BETWEEN_GROUPS(2, storyGangRelationshipGroup, storyGangRelationshipGroup);
+				}
+
+				// === STORY GANG MAINTENANCE LOGIC ===
+				// initial health/stamina/deadeye setup
+				ped.SetHealth(ped.GetMaxHealth());
+				ped.SetStamina(ped.GetMaxStamina());
+
+				// set all attribute cores to 99999
+				ATTRIBUTE::_SET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), 0, 99999); // health core
+				ATTRIBUTE::_SET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), 1, 99999); // stamina core
+				ATTRIBUTE::_SET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), 2, 99999); // deadeye core
+
+				// initial cleanliness setup
+				PED::_SET_PED_DAMAGE_CLEANLINESS(ped.GetHandle(), 0.0f);
+				PED::CLEAR_PED_WETNESS(ped.GetHandle());
+				PED::CLEAR_PED_ENV_DIRT(ped.GetHandle());
+				PED::CLEAR_PED_BLOOD_DAMAGE(ped.GetHandle());
+				PED::CLEAR_PED_DAMAGE_DECAL_BY_ZONE(ped.GetHandle(), 0, "ALL");
 			}
 		});
 	}
@@ -5159,146 +5169,6 @@ namespace YimMenu::Submenus
 			{
 				SpawnPed(member.model, member.variation, true, true); // isStoryGang = true to preserve attributes
 			}
-
-			// add infinite health/stamina logic to the gang members we just spawned
-			// wait a bit to ensure all gang members are spawned first
-			FiberPool::Push([storyGang] {
-				ScriptMgr::Yield(100ms); // wait for all spawns to complete
-
-				// get the last N peds from the spawned list (where N = gang size)
-				int gangSize = static_cast<int>(storyGang.size());
-				if (g_SpawnedPeds.size() >= gangSize)
-				{
-					// apply infinite health/stamina to the last N spawned peds
-					for (int i = g_SpawnedPeds.size() - gangSize; i < g_SpawnedPeds.size(); i++)
-					{
-						Ped ped = g_SpawnedPeds[i];
-
-						// initial health/stamina fill
-						ped.SetHealth(ped.GetMaxHealth());
-						ped.SetStamina(ped.GetMaxStamina());
-						ATTRIBUTE::_SET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), (int)AttributeCore::ATTRIBUTE_CORE_HEALTH, 100);
-						ATTRIBUTE::_SET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), (int)AttributeCore::ATTRIBUTE_CORE_STAMINA, 100);
-						ATTRIBUTE::_SET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), (int)AttributeCore::ATTRIBUTE_CORE_DEADEYE, 100);
-
-						PED::SET_PED_ACCURACY(ped.GetHandle(), 95);
-
-						// mark as Story Gang member for maintenance loop
-						DECORATOR::DECOR_SET_INT(ped.GetHandle(), "SH_STORY_GANG", 1);
-
-						// story gang relationship setup - use a custom gang relationship group
-						Hash storyGangRelationshipGroup = "STORY_GANG_FRIENDLY"_J; // custom relationship group for story gang
-
-						// set up shared gang relationships
-						PED::SET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle(), storyGangRelationshipGroup);
-
-						// make gang members friendly with each other using LIKE relationship (value 2)
-						PED::SET_RELATIONSHIP_BETWEEN_GROUPS(2, storyGangRelationshipGroup, storyGangRelationshipGroup);
-
-						// also set up relationship with player to avoid conflicts
-						auto playerGroup = PED::GET_PED_RELATIONSHIP_GROUP_HASH(YimMenu::Self::GetPed().GetHandle());
-						PED::SET_RELATIONSHIP_BETWEEN_GROUPS(2, storyGangRelationshipGroup, playerGroup);
-						PED::SET_RELATIONSHIP_BETWEEN_GROUPS(2, playerGroup, storyGangRelationshipGroup);
-
-						// continuous maintenance loop for this gang member
-						FiberPool::Push([ped] () mutable {
-							while (ped.IsValid() && !ped.IsDead())
-							{
-								// maintain health bar - same as player logic
-								auto health_bar = ped.GetHealth();
-								if (health_bar < ped.GetMaxHealth())
-									ped.SetHealth(ped.GetMaxHealth());
-
-								// maintain health core - same as player logic
-								auto health_core = ATTRIBUTE::_GET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), (int)AttributeCore::ATTRIBUTE_CORE_HEALTH);
-								if (health_core < 100)
-									ATTRIBUTE::_SET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), (int)AttributeCore::ATTRIBUTE_CORE_HEALTH, 100);
-
-								// maintain stamina bar - same as player logic
-								auto stamina_bar = ped.GetStamina();
-								auto max_stamina = PED::_GET_PED_MAX_STAMINA(ped.GetHandle());
-								if (stamina_bar < max_stamina)
-									PED::_CHANGE_PED_STAMINA(ped.GetHandle(), max_stamina - stamina_bar);
-
-								// maintain stamina core - same as player logic
-								auto stamina_core = ATTRIBUTE::_GET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), (int)AttributeCore::ATTRIBUTE_CORE_STAMINA);
-								if (stamina_core < 100)
-									ATTRIBUTE::_SET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), (int)AttributeCore::ATTRIBUTE_CORE_STAMINA, 100);
-
-								// maintain deadeye core - same as player logic
-								auto deadeye_core = ATTRIBUTE::_GET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), (int)AttributeCore::ATTRIBUTE_CORE_DEADEYE);
-								if (deadeye_core < 100)
-									ATTRIBUTE::_SET_ATTRIBUTE_CORE_VALUE(ped.GetHandle(), (int)AttributeCore::ATTRIBUTE_CORE_DEADEYE, 100);
-
-								// maintain never flee attributes - prevent game from resetting them
-								PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 78, true);  // CA_DISABLE_ALL_RANDOMS_FLEE
-								PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 17, false); // CA_ALWAYS_FLEE
-								PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 58, true);  // CA_DISABLE_FLEE_FROM_COMBAT
-
-								// maintain story gang relationships - prevent game from resetting them
-								Hash storyGangRelationshipGroup = "STORY_GANG_FRIENDLY"_J;
-								PED::SET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle(), storyGangRelationshipGroup);
-								PED::SET_RELATIONSHIP_BETWEEN_GROUPS(2, storyGangRelationshipGroup, storyGangRelationshipGroup);
-
-								// maintain companion relationship - prevent them from forgetting to follow
-								if (g_Companion)
-								{
-									int group = PED::GET_PED_GROUP_INDEX(YimMenu::Self::GetPed().GetHandle());
-									if (PED::DOES_GROUP_EXIST(group))
-									{
-										// refresh group membership
-										PED::SET_PED_AS_GROUP_MEMBER(ped.GetHandle(), group);
-										// refresh group formation
-										PED::SET_GROUP_FORMATION(group, g_Formation);
-										// DO NOT override story gang relationships - they must stay in STORY_GANG_FRIENDLY group
-
-										// additional companion maintenance - prevent AI override
-										PED::SET_PED_CAN_BE_TARGETTED_BY_PLAYER(ped.GetHandle(), YimMenu::Self::GetPlayer().GetId(), false);
-										PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped.GetHandle(), false);
-
-										// refresh companion config flags
-										ped.SetConfigFlag(PedConfigFlag::_0x16A14D9A, false);
-										ped.SetConfigFlag(PedConfigFlag::_DisableHorseFleeILO, true);
-										ped.SetConfigFlag(PedConfigFlag::_0x74F95F2E, false);
-										ped.SetConfigFlag(PedConfigFlag::Avoidance_Ignore_All, false);
-										ped.SetConfigFlag(PedConfigFlag::DisableShockingEvents, false);
-										ped.SetConfigFlag(PedConfigFlag::DisablePedAvoidance, false);
-										ped.SetConfigFlag(PedConfigFlag::DisableExplosionReactions, false);
-										ped.SetConfigFlag(PedConfigFlag::DisableEvasiveStep, false);
-										ped.SetConfigFlag(PedConfigFlag::DisableHorseGunshotFleeResponse, true);
-
-										// handle stuck/idle peds - check distance and movement
-										Vector3 playerPos = YimMenu::Self::GetPed().GetPosition();
-										Vector3 pedPos = ped.GetPosition();
-										float distance = sqrt(pow(playerPos.x - pedPos.x, 2) + pow(playerPos.y - pedPos.y, 2) + pow(playerPos.z - pedPos.z, 2));
-
-										// if ped is too far away (>30 meters) or seems idle, refresh their task
-										if (distance > 30.0f || (!PED::IS_PED_IN_COMBAT(ped.GetHandle(), 0) && distance > 10.0f))
-										{
-											// clear current tasks and refresh AI
-											TASK::CLEAR_PED_TASKS_IMMEDIATELY(ped.GetHandle(), true, true);
-											PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped.GetHandle(), false);
-											// re-assign to group to trigger follow behavior
-											PED::SET_PED_AS_GROUP_MEMBER(ped.GetHandle(), group);
-
-											TASK::TASK_FOLLOW_TO_OFFSET_OF_ENTITY(ped.GetHandle(), YimMenu::Self::GetPed().GetHandle(), 0.0f, 0.0f, 0.0f, 1.0f, -1, 2.5f, true, false, false, false, false, false);
-										}
-									}
-								}
-
-								// keep clean - same as player logic
-								PED::_SET_PED_DAMAGE_CLEANLINESS(ped.GetHandle(), (int)PedDamageCleanliness::PED_DAMAGE_CLEANLINESS_PERFECT);
-								PED::CLEAR_PED_WETNESS(ped.GetHandle());
-								PED::CLEAR_PED_ENV_DIRT(ped.GetHandle());
-								PED::CLEAR_PED_BLOOD_DAMAGE(ped.GetHandle());
-								PED::CLEAR_PED_DAMAGE_DECAL_BY_ZONE(ped.GetHandle(), 10, "ALL");
-
-								ScriptMgr::Yield(1000ms); // check every 1 second - less aggressive to prevent AI interference
-							}
-						});
-					}
-				}
-			});
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Cleanup Peds"))
