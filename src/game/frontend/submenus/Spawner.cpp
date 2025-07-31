@@ -5059,26 +5059,320 @@ namespace YimMenu::Submenus
 
 		ImGui::Spacing();
 
-		// search input with autocomplete
-		InputTextWithHint("##pedmodel", "Search Peds", &g_PedModelBuffer, ImGuiInputTextFlags_CallbackCompletion, nullptr, PedSpawnerInputCallback)
+		// unified search input across all navigation sections
+		InputTextWithHint("##pedmodel", "Search All Peds", &g_PedModelBuffer, ImGuiInputTextFlags_CallbackCompletion, nullptr, PedSpawnerInputCallback)
 		    .Draw();
 		if (ImGui::IsItemHovered())
-			ImGui::SetTooltip("Press Tab to auto fill");
+			ImGui::SetTooltip("Search across Animals, Horses, Humans, and Fishes - Press Tab to auto fill");
 
-		// search results dropdown
+		// unified search results dropdown
 		if (!g_PedModelBuffer.empty() && !IsPedModelInList(g_PedModelBuffer))
 		{
-			ImGui::BeginListBox("##pedmodels", ImVec2(250, 100));
+			ImGui::BeginListBox("##unifiedsearch", ImVec2(400, 200));
 
-			std::string bufferLower = g_PedModelBuffer;
-			std::transform(bufferLower.begin(), bufferLower.end(), bufferLower.begin(), ::tolower);
-			for (const auto& [hash, model] : Data::g_PedModels)
+			std::string searchLower = g_PedModelBuffer;
+			std::transform(searchLower.begin(), searchLower.end(), searchLower.begin(), ::tolower);
+
+			// helper function for centered separator in dropdown
+			auto RenderCenteredSeparator = [](const char* text) {
+				ImGui::PushFont(Menu::Font::g_ChildTitleFont);
+				ImVec2 textSize = ImGui::CalcTextSize(text);
+				ImVec2 contentRegion = ImGui::GetContentRegionAvail();
+
+				// center text
+				ImGui::SetCursorPosX((contentRegion.x - textSize.x) * 0.5f);
+				ImGui::Text(text);
+				ImGui::PopFont();
+
+				// draw centered line (3x text width) using screen coordinates
+				float lineWidth = textSize.x * 3.0f;
+				float linePosX = (contentRegion.x - lineWidth) * 0.5f;
+
+				ImDrawList* drawList = ImGui::GetWindowDrawList();
+				ImVec2 windowPos = ImGui::GetWindowPos();
+				ImVec2 cursorScreenPos = ImGui::GetCursorScreenPos();
+
+				// use screen coordinates for proper positioning with scrolling
+				drawList->AddLine(
+					ImVec2(windowPos.x + linePosX, cursorScreenPos.y),
+					ImVec2(windowPos.x + linePosX + lineWidth, cursorScreenPos.y),
+					ImGui::GetColorU32(ImGuiCol_Separator), 1.0f);
+
+				ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
+				ImGui::Spacing();
+			};
+
+			bool hasResults = false;
+
+			// helper function to check if search matches section name
+			auto sectionMatches = [&](const char* sectionName) -> bool {
+				std::string sectionLower = sectionName;
+				std::transform(sectionLower.begin(), sectionLower.end(), sectionLower.begin(), ::tolower);
+				return sectionLower.find(searchLower) != std::string::npos;
+			};
+
+			// search legendary animals
+			bool legendaryHasResults = false;
+			bool legendarySection = sectionMatches("Legendary Animals") || sectionMatches("Legendary");
+
+			if (legendarySection)
 			{
-				std::string pedModelLower = model;
-				std::transform(pedModelLower.begin(), pedModelLower.end(), pedModelLower.begin(), ::tolower);
-				if (pedModelLower.find(bufferLower) != std::string::npos && ImGui::Selectable(model))
+				RenderCenteredSeparator("Legendary Animals");
+				legendaryHasResults = true;
+				hasResults = true;
+				for (const auto& animal : g_LegendaryAnimals)
 				{
-					g_PedModelBuffer = model;
+					if (ImGui::Selectable(animal.name.c_str()))
+					{
+						g_PedModelBuffer = animal.model;
+					}
+				}
+			}
+			else
+			{
+				for (const auto& animal : g_LegendaryAnimals)
+				{
+					std::string nameLower = animal.name;
+					std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
+					if (nameLower.find(searchLower) != std::string::npos)
+					{
+						if (!legendaryHasResults)
+						{
+							RenderCenteredSeparator("Legendary Animals");
+							legendaryHasResults = true;
+							hasResults = true;
+						}
+						if (ImGui::Selectable(animal.name.c_str()))
+						{
+							g_PedModelBuffer = animal.model;
+						}
+					}
+				}
+			}
+
+			// search regular animals
+			bool regularHasResults = false;
+			bool regularSection = sectionMatches("Regular Animals") || sectionMatches("Animals");
+
+			if (regularSection)
+			{
+				RenderCenteredSeparator("Regular Animals");
+				regularHasResults = true;
+				hasResults = true;
+				for (const auto& animal : g_RegularAnimals)
+				{
+					if (ImGui::Selectable(animal.name.c_str()))
+					{
+						g_PedModelBuffer = animal.model;
+					}
+				}
+			}
+			else
+			{
+				for (const auto& animal : g_RegularAnimals)
+				{
+					std::string nameLower = animal.name;
+					std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
+					if (nameLower.find(searchLower) != std::string::npos)
+					{
+						if (!regularHasResults)
+						{
+							RenderCenteredSeparator("Regular Animals");
+							regularHasResults = true;
+							hasResults = true;
+						}
+						if (ImGui::Selectable(animal.name.c_str()))
+						{
+							g_PedModelBuffer = animal.model;
+						}
+					}
+				}
+			}
+
+			// search dogs
+			bool dogHasResults = false;
+			bool dogSection = sectionMatches("Dogs");
+
+			if (dogSection)
+			{
+				RenderCenteredSeparator("Dogs");
+				dogHasResults = true;
+				hasResults = true;
+				for (const auto& dog : g_Dogs)
+				{
+					if (ImGui::Selectable(dog.name.c_str()))
+					{
+						g_PedModelBuffer = dog.model;
+					}
+				}
+			}
+			else
+			{
+				for (const auto& dog : g_Dogs)
+				{
+					std::string nameLower = dog.name;
+					std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
+					if (nameLower.find(searchLower) != std::string::npos)
+					{
+						if (!dogHasResults)
+						{
+							RenderCenteredSeparator("Dogs");
+							dogHasResults = true;
+							hasResults = true;
+						}
+						if (ImGui::Selectable(dog.name.c_str()))
+						{
+							g_PedModelBuffer = dog.model;
+						}
+					}
+				}
+			}
+
+			// search horses - all breed sections
+			auto searchHorseSection = [&](const std::vector<Horse>& horses, const char* sectionName, bool& sectionHasResults) {
+				for (const auto& horse : horses)
+				{
+					std::string nameLower = horse.name;
+					std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
+					if (nameLower.find(searchLower) != std::string::npos)
+					{
+						if (!sectionHasResults)
+						{
+							RenderCenteredSeparator(sectionName);
+							sectionHasResults = true;
+							hasResults = true;
+						}
+						if (ImGui::Selectable(horse.name.c_str()))
+						{
+							g_PedModelBuffer = horse.model;
+						}
+					}
+				}
+			};
+
+			bool americanPaintHasResults = false, americanStandardbredHasResults = false, andalusianHasResults = false;
+			bool appaloosaHasResults = false, arabianHasResults = false, ardennesHasResults = false;
+			bool belgianHasResults = false, bretonHasResults = false, criolloHasResults = false;
+			bool dutchWarmbloodHasResults = false, gangHorseHasResults = false, gypsyCobHasResults = false;
+			bool hungarianHalfbredHasResults = false, kentuckySaddlerHasResults = false, klardruberHasResults = false;
+			bool missouriFoxTrotterHasResults = false, morganHasResults = false, mustangHasResults = false;
+			bool nokotaHasResults = false, norfolkRoadsterHasResults = false, shireHasResults = false;
+			bool suffolkPunchHasResults = false, tennesseeWalkerHasResults = false, thoroughbredHasResults = false;
+			bool turkomanHasResults = false, miscellaneousHorseHasResults = false;
+
+			searchHorseSection(g_AmericanPaintHorses, "American Paint", americanPaintHasResults);
+			searchHorseSection(g_AmericanStandardbredHorses, "American Standardbred", americanStandardbredHasResults);
+			searchHorseSection(g_AndalusianHorses, "Andalusian", andalusianHasResults);
+			searchHorseSection(g_AppaloosaHorses, "Appaloosa", appaloosaHasResults);
+			searchHorseSection(g_ArabianHorses, "Arabian", arabianHasResults);
+			searchHorseSection(g_ArdennesHorses, "Ardennes", ardennesHasResults);
+			searchHorseSection(g_BelgianHorses, "Belgian", belgianHasResults);
+			searchHorseSection(g_BretonHorses, "Breton", bretonHasResults);
+			searchHorseSection(g_CriolloHorses, "Criollo", criolloHasResults);
+			searchHorseSection(g_DutchWarmbloodHorses, "Dutch Warmblood", dutchWarmbloodHasResults);
+			searchHorseSection(g_GangHorses, "Gang", gangHorseHasResults);
+			searchHorseSection(g_GypsyCobHorses, "Gypsy Cob", gypsyCobHasResults);
+			searchHorseSection(g_HungarianHalfbredHorses, "Hungarian Halfbred", hungarianHalfbredHasResults);
+			searchHorseSection(g_KentuckySaddlerHorses, "Kentucky Saddler", kentuckySaddlerHasResults);
+			searchHorseSection(g_KlardruberHorses, "Klardruber", klardruberHasResults);
+			searchHorseSection(g_MissouriFoxTrotterHorses, "Missouri Fox Trotter", missouriFoxTrotterHasResults);
+			searchHorseSection(g_MorganHorses, "Morgan", morganHasResults);
+			searchHorseSection(g_MustangHorses, "Mustang", mustangHasResults);
+			searchHorseSection(g_NokotaHorses, "Nokota", nokotaHasResults);
+			searchHorseSection(g_NorfolkRoadsterHorses, "Norfolk Roadster", norfolkRoadsterHasResults);
+			searchHorseSection(g_ShireHorses, "Shire", shireHasResults);
+			searchHorseSection(g_SuffolkPunchHorses, "Suffolk Punch", suffolkPunchHasResults);
+			searchHorseSection(g_TennesseeWalkerHorses, "Tennessee Walker", tennesseeWalkerHasResults);
+			searchHorseSection(g_ThoroughbredHorses, "Thoroughbred", thoroughbredHasResults);
+			searchHorseSection(g_TurkomanHorses, "Turkoman", turkomanHasResults);
+			searchHorseSection(g_MiscellaneousHorses, "Miscellaneous", miscellaneousHorseHasResults);
+
+			// search humans - all category sections
+			auto searchHumanSection = [&](const std::vector<Human>& humans, const char* sectionName, bool& sectionHasResults) {
+				for (const auto& human : humans)
+				{
+					std::string modelLower = human.model;
+					std::transform(modelLower.begin(), modelLower.end(), modelLower.begin(), ::tolower);
+					if (modelLower.find(searchLower) != std::string::npos)
+					{
+						if (!sectionHasResults)
+						{
+							RenderCenteredSeparator(sectionName);
+							sectionHasResults = true;
+							hasResults = true;
+						}
+						if (ImGui::Selectable(human.model.c_str()))
+						{
+							g_PedModelBuffer = human.model;
+						}
+					}
+				}
+			};
+
+			bool ambientFemaleHasResults = false, ambientFemaleOrdinaryHasResults = false, ambientMaleHasResults = false;
+			bool ambientMaleOrdinaryHasResults = false, ambientMaleSuppressedHasResults = false, cutsceneHasResults = false;
+			bool multiplayerCutsceneHasResults = false, gangHumanHasResults = false, storyFinaleHasResults = false;
+			bool multiplayerBloodMoneyHasResults = false, multiplayerBountyHuntersHasResults = false, multiplayerNaturalistHasResults = false;
+			bool multiplayerHasResults = false, storyHasResults = false, randomEventHasResults = false;
+			bool scenarioHasResults = false, storyScenarioFemaleHasResults = false, storyScenarioMaleHasResults = false;
+			bool miscellaneousHumanHasResults = false;
+
+			searchHumanSection(g_AmbientFemale, "Ambient Female", ambientFemaleHasResults);
+			searchHumanSection(g_AmbientFemaleOrdinary, "Ambient Female Ordinary", ambientFemaleOrdinaryHasResults);
+			searchHumanSection(g_AmbientMale, "Ambient Male", ambientMaleHasResults);
+			searchHumanSection(g_AmbientMaleOrdinary, "Ambient Male Ordinary", ambientMaleOrdinaryHasResults);
+			searchHumanSection(g_AmbientMaleSuppressed, "Ambient Male Suppressed", ambientMaleSuppressedHasResults);
+			searchHumanSection(g_Cutscene, "Cutscene", cutsceneHasResults);
+			searchHumanSection(g_MultiplayerCutscene, "Multiplayer Cutscene", multiplayerCutsceneHasResults);
+			searchHumanSection(g_Gang, "Gang", gangHumanHasResults);
+			searchHumanSection(g_StoryFinale, "Story Finale", storyFinaleHasResults);
+			searchHumanSection(g_MultiplayerBloodMoney, "Multiplayer Blood Money", multiplayerBloodMoneyHasResults);
+			searchHumanSection(g_MultiplayerBountyHunters, "Multiplayer Bounty Hunters", multiplayerBountyHuntersHasResults);
+			searchHumanSection(g_MultiplayerNaturalist, "Multiplayer Naturalist", multiplayerNaturalistHasResults);
+			searchHumanSection(g_Multiplayer, "Multiplayer", multiplayerHasResults);
+			searchHumanSection(g_Story, "Story", storyHasResults);
+			searchHumanSection(g_RandomEvent, "Random Event", randomEventHasResults);
+			searchHumanSection(g_Scenario, "Scenario", scenarioHasResults);
+			searchHumanSection(g_StoryScenarioFemale, "Story Scenario Female", storyScenarioFemaleHasResults);
+			searchHumanSection(g_StoryScenarioMale, "Story Scenario Male", storyScenarioMaleHasResults);
+			searchHumanSection(g_Miscellaneous, "Miscellaneous", miscellaneousHumanHasResults);
+
+			// search fishes
+			bool fishHasResults = false;
+			bool fishSection = sectionMatches("Fishes") || sectionMatches("Fish");
+
+			if (fishSection)
+			{
+				RenderCenteredSeparator("Fishes");
+				fishHasResults = true;
+				hasResults = true;
+				for (const auto& fish : g_Fishes)
+				{
+					if (ImGui::Selectable(fish.name.c_str()))
+					{
+						g_PedModelBuffer = fish.model;
+					}
+				}
+			}
+			else
+			{
+				for (const auto& fish : g_Fishes)
+				{
+					std::string nameLower = fish.name;
+					std::transform(nameLower.begin(), nameLower.end(), nameLower.begin(), ::tolower);
+					if (nameLower.find(searchLower) != std::string::npos)
+					{
+						if (!fishHasResults)
+						{
+							RenderCenteredSeparator("Fishes");
+							fishHasResults = true;
+							hasResults = true;
+						}
+						if (ImGui::Selectable(fish.name.c_str()))
+						{
+							g_PedModelBuffer = fish.model;
+						}
+					}
 				}
 			}
 
