@@ -1,7 +1,4 @@
 build/
 .vs
 *.zip
-bkp/
-base/
-ped_database/
-AI/
+resources/
