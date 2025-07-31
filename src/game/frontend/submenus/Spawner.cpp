@@ -2771,10 +2771,727 @@ namespace YimMenu::Submenus
 		// reset cursor to original position and add some top margin
 		ImGui::SetCursorPos(ImVec2(originalPos.x, originalPos.y + 35));
 
-		// placeholder content for humans
-		ImGui::Text("Humans - Coming Soon");
-		ImGui::Separator();
-		ImGui::Text("This will contain human ped categories and spawning options.");
+		// helper function for centered separator with custom line width
+		auto RenderCenteredSeparator = [](const char* text) {
+			ImGui::PushFont(Menu::Font::g_ChildTitleFont);
+			ImVec2 textSize = ImGui::CalcTextSize(text);
+			ImVec2 contentRegion = ImGui::GetContentRegionAvail();
+
+			// center text
+			ImGui::SetCursorPosX((contentRegion.x - textSize.x) * 0.5f);
+			ImGui::Text(text);
+			ImGui::PopFont();
+
+			// draw centered line (3x text width) using screen coordinates
+			float lineWidth = textSize.x * 3.0f;
+			float linePosX = (contentRegion.x - lineWidth) * 0.5f;
+
+			ImDrawList* drawList = ImGui::GetWindowDrawList();
+			ImVec2 windowPos = ImGui::GetWindowPos();
+			ImVec2 cursorScreenPos = ImGui::GetCursorScreenPos();
+
+			// use screen coordinates for proper positioning with scrolling
+			drawList->AddLine(
+				ImVec2(windowPos.x + linePosX, cursorScreenPos.y),
+				ImVec2(windowPos.x + linePosX + lineWidth, cursorScreenPos.y),
+				ImGui::GetColorU32(ImGuiCol_Separator), 1.0f);
+
+			ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
+			ImGui::Spacing();
+		};
+
+		// lambda function for getting human model names
+		auto getHumanName = [](const Human& human) { return human.model; };
+
+		// check section matches
+		bool ambientFemaleMatches = g_HumanSearch.SectionMatches("Ambient Female", g_HumanSearch.searchBuffer);
+		bool ambientFemaleOrdinaryMatches = g_HumanSearch.SectionMatches("Ambient Female Ordinary", g_HumanSearch.searchBuffer);
+		bool ambientMaleMatches = g_HumanSearch.SectionMatches("Ambient Male", g_HumanSearch.searchBuffer);
+		bool ambientMaleOrdinaryMatches = g_HumanSearch.SectionMatches("Ambient Male Ordinary", g_HumanSearch.searchBuffer);
+		bool ambientMaleSuppressedMatches = g_HumanSearch.SectionMatches("Ambient Male Suppressed", g_HumanSearch.searchBuffer);
+		bool cutsceneMatches = g_HumanSearch.SectionMatches("Cutscene", g_HumanSearch.searchBuffer);
+		bool multiplayerCutsceneMatches = g_HumanSearch.SectionMatches("Multiplayer Cutscene", g_HumanSearch.searchBuffer);
+		bool gangMatches = g_HumanSearch.SectionMatches("Gang", g_HumanSearch.searchBuffer);
+		bool storyFinaleMatches = g_HumanSearch.SectionMatches("Story Finale", g_HumanSearch.searchBuffer);
+		bool multiplayerBloodMoneyMatches = g_HumanSearch.SectionMatches("Multiplayer Blood Money", g_HumanSearch.searchBuffer);
+		bool multiplayerBountyHuntersMatches = g_HumanSearch.SectionMatches("Multiplayer Bounty Hunters", g_HumanSearch.searchBuffer);
+		bool multiplayerNaturalistMatches = g_HumanSearch.SectionMatches("Multiplayer Naturalist", g_HumanSearch.searchBuffer);
+		bool multiplayerMatches = g_HumanSearch.SectionMatches("Multiplayer", g_HumanSearch.searchBuffer);
+		bool storyMatches = g_HumanSearch.SectionMatches("Story", g_HumanSearch.searchBuffer);
+		bool randomEventMatches = g_HumanSearch.SectionMatches("Random Event", g_HumanSearch.searchBuffer);
+		bool scenarioMatches = g_HumanSearch.SectionMatches("Scenario", g_HumanSearch.searchBuffer);
+		bool storyScenarioFemaleMatches = g_HumanSearch.SectionMatches("Story Scenario Female", g_HumanSearch.searchBuffer);
+		bool storyScenarioMaleMatches = g_HumanSearch.SectionMatches("Story Scenario Male", g_HumanSearch.searchBuffer);
+		bool miscellaneousMatches = g_HumanSearch.SectionMatches("Miscellaneous", g_HumanSearch.searchBuffer);
+
+		// count visible humans in each section
+		int ambientFemaleVisible = ambientFemaleMatches ? static_cast<int>(g_AmbientFemale.size()) :
+		                          g_HumanSearch.CountMatches(g_AmbientFemale, g_HumanSearch.searchBuffer, getHumanName);
+		int ambientFemaleOrdinaryVisible = ambientFemaleOrdinaryMatches ? static_cast<int>(g_AmbientFemaleOrdinary.size()) :
+		                                  g_HumanSearch.CountMatches(g_AmbientFemaleOrdinary, g_HumanSearch.searchBuffer, getHumanName);
+		int ambientMaleVisible = ambientMaleMatches ? static_cast<int>(g_AmbientMale.size()) :
+		                        g_HumanSearch.CountMatches(g_AmbientMale, g_HumanSearch.searchBuffer, getHumanName);
+		int ambientMaleOrdinaryVisible = ambientMaleOrdinaryMatches ? static_cast<int>(g_AmbientMaleOrdinary.size()) :
+		                                g_HumanSearch.CountMatches(g_AmbientMaleOrdinary, g_HumanSearch.searchBuffer, getHumanName);
+		int ambientMaleSuppressedVisible = ambientMaleSuppressedMatches ? static_cast<int>(g_AmbientMaleSuppressed.size()) :
+		                                  g_HumanSearch.CountMatches(g_AmbientMaleSuppressed, g_HumanSearch.searchBuffer, getHumanName);
+		int cutsceneVisible = cutsceneMatches ? static_cast<int>(g_Cutscene.size()) :
+		                     g_HumanSearch.CountMatches(g_Cutscene, g_HumanSearch.searchBuffer, getHumanName);
+		int multiplayerCutsceneVisible = multiplayerCutsceneMatches ? static_cast<int>(g_MultiplayerCutscene.size()) :
+		                                g_HumanSearch.CountMatches(g_MultiplayerCutscene, g_HumanSearch.searchBuffer, getHumanName);
+		int gangVisible = gangMatches ? static_cast<int>(g_Gang.size()) :
+		                 g_HumanSearch.CountMatches(g_Gang, g_HumanSearch.searchBuffer, getHumanName);
+		int storyFinaleVisible = storyFinaleMatches ? static_cast<int>(g_StoryFinale.size()) :
+		                        g_HumanSearch.CountMatches(g_StoryFinale, g_HumanSearch.searchBuffer, getHumanName);
+		int multiplayerBloodMoneyVisible = multiplayerBloodMoneyMatches ? static_cast<int>(g_MultiplayerBloodMoney.size()) :
+		                                  g_HumanSearch.CountMatches(g_MultiplayerBloodMoney, g_HumanSearch.searchBuffer, getHumanName);
+		int multiplayerBountyHuntersVisible = multiplayerBountyHuntersMatches ? static_cast<int>(g_MultiplayerBountyHunters.size()) :
+		                                     g_HumanSearch.CountMatches(g_MultiplayerBountyHunters, g_HumanSearch.searchBuffer, getHumanName);
+		int multiplayerNaturalistVisible = multiplayerNaturalistMatches ? static_cast<int>(g_MultiplayerNaturalist.size()) :
+		                                  g_HumanSearch.CountMatches(g_MultiplayerNaturalist, g_HumanSearch.searchBuffer, getHumanName);
+		int multiplayerVisible = multiplayerMatches ? static_cast<int>(g_Multiplayer.size()) :
+		                        g_HumanSearch.CountMatches(g_Multiplayer, g_HumanSearch.searchBuffer, getHumanName);
+		int storyVisible = storyMatches ? static_cast<int>(g_Story.size()) :
+		                  g_HumanSearch.CountMatches(g_Story, g_HumanSearch.searchBuffer, getHumanName);
+		int randomEventVisible = randomEventMatches ? static_cast<int>(g_RandomEvent.size()) :
+		                        g_HumanSearch.CountMatches(g_RandomEvent, g_HumanSearch.searchBuffer, getHumanName);
+		int scenarioVisible = scenarioMatches ? static_cast<int>(g_Scenario.size()) :
+		                     g_HumanSearch.CountMatches(g_Scenario, g_HumanSearch.searchBuffer, getHumanName);
+		int storyScenarioFemaleVisible = storyScenarioFemaleMatches ? static_cast<int>(g_StoryScenarioFemale.size()) :
+		                                g_HumanSearch.CountMatches(g_StoryScenarioFemale, g_HumanSearch.searchBuffer, getHumanName);
+		int storyScenarioMaleVisible = storyScenarioMaleMatches ? static_cast<int>(g_StoryScenarioMale.size()) :
+		                              g_HumanSearch.CountMatches(g_StoryScenarioMale, g_HumanSearch.searchBuffer, getHumanName);
+		int miscellaneousVisible = miscellaneousMatches ? static_cast<int>(g_Miscellaneous.size()) :
+		                          g_HumanSearch.CountMatches(g_Miscellaneous, g_HumanSearch.searchBuffer, getHumanName);
+
+		// determine section visibility
+		bool showAmbientFemale = ambientFemaleMatches || (ambientFemaleVisible > 0);
+		bool showAmbientFemaleOrdinary = ambientFemaleOrdinaryMatches || (ambientFemaleOrdinaryVisible > 0);
+		bool showAmbientMale = ambientMaleMatches || (ambientMaleVisible > 0);
+		bool showAmbientMaleOrdinary = ambientMaleOrdinaryMatches || (ambientMaleOrdinaryVisible > 0);
+		bool showAmbientMaleSuppressed = ambientMaleSuppressedMatches || (ambientMaleSuppressedVisible > 0);
+		bool showCutscene = cutsceneMatches || (cutsceneVisible > 0);
+		bool showMultiplayerCutscene = multiplayerCutsceneMatches || (multiplayerCutsceneVisible > 0);
+		bool showGang = gangMatches || (gangVisible > 0);
+		bool showStoryFinale = storyFinaleMatches || (storyFinaleVisible > 0);
+		bool showMultiplayerBloodMoney = multiplayerBloodMoneyMatches || (multiplayerBloodMoneyVisible > 0);
+		bool showMultiplayerBountyHunters = multiplayerBountyHuntersMatches || (multiplayerBountyHuntersVisible > 0);
+		bool showMultiplayerNaturalist = multiplayerNaturalistMatches || (multiplayerNaturalistVisible > 0);
+		bool showMultiplayer = multiplayerMatches || (multiplayerVisible > 0);
+		bool showStory = storyMatches || (storyVisible > 0);
+		bool showRandomEvent = randomEventMatches || (randomEventVisible > 0);
+		bool showScenario = scenarioMatches || (scenarioVisible > 0);
+		bool showStoryScenarioFemale = storyScenarioFemaleMatches || (storyScenarioFemaleVisible > 0);
+		bool showStoryScenarioMale = storyScenarioMaleMatches || (storyScenarioMaleVisible > 0);
+		bool showMiscellaneous = miscellaneousMatches || (miscellaneousVisible > 0);
+
+		// calculate totals
+		int totalHumans = static_cast<int>(g_AmbientFemale.size() + g_AmbientFemaleOrdinary.size() + g_AmbientMale.size() +
+		                                  g_AmbientMaleOrdinary.size() + g_AmbientMaleSuppressed.size() + g_Cutscene.size() +
+		                                  g_MultiplayerCutscene.size() + g_Gang.size() + g_StoryFinale.size() +
+		                                  g_MultiplayerBloodMoney.size() + g_MultiplayerBountyHunters.size() +
+		                                  g_MultiplayerNaturalist.size() + g_Multiplayer.size() + g_Story.size() +
+		                                  g_RandomEvent.size() + g_Scenario.size() + g_StoryScenarioFemale.size() +
+		                                  g_StoryScenarioMale.size() + g_Miscellaneous.size());
+		int totalVisible = ambientFemaleVisible + ambientFemaleOrdinaryVisible + ambientMaleVisible +
+		                  ambientMaleOrdinaryVisible + ambientMaleSuppressedVisible + cutsceneVisible +
+		                  multiplayerCutsceneVisible + gangVisible + storyFinaleVisible + multiplayerBloodMoneyVisible +
+		                  multiplayerBountyHuntersVisible + multiplayerNaturalistVisible + multiplayerVisible +
+		                  storyVisible + randomEventVisible + scenarioVisible + storyScenarioFemaleVisible +
+		                  storyScenarioMaleVisible + miscellaneousVisible;
+
+		// render search bar with count
+		g_HumanSearch.RenderSearchBar("Search Humans", totalHumans, totalVisible);
+
+		// variation input field beside search bar (same as main spawner)
+		ImGui::SetNextItemWidth(150);
+		ImGui::InputInt("Set Variation", &g_Variation);
+		if (ImGui::IsItemHovered())
+			ImGui::SetTooltip("outfit variation number (0 = random/default) - affects both spawn and set model actions");
+
+		ImGui::Spacing();
+
+		// ambient female section
+		if (showAmbientFemale)
+		{
+			RenderCenteredSeparator("Ambient Female");
+
+			for (size_t i = 0; i < g_AmbientFemale.size(); ++i)
+			{
+				const auto& human = g_AmbientFemale[i];
+				if (g_HumanSearch.ShouldShowItem(human, ambientFemaleMatches, getHumanName))
+				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("AmbientFemale_" + human.model + "_" + std::to_string(i)).c_str());
+					if (ImGui::Button(human.model.c_str(), ImVec2(-1, 25)))
+					{
+						if (g_SetModelMode)
+						{
+							SetPlayerModel(human.model, g_Variation);
+						}
+						else
+						{
+							SpawnPed(human.model, g_Variation, g_Armed);
+						}
+					}
+					ImGui::PopID();
+				}
+			}
+
+			ImGui::Spacing();
+		}
+
+		// ambient female ordinary section
+		if (showAmbientFemaleOrdinary)
+		{
+			RenderCenteredSeparator("Ambient Female Ordinary");
+
+			for (size_t i = 0; i < g_AmbientFemaleOrdinary.size(); ++i)
+			{
+				const auto& human = g_AmbientFemaleOrdinary[i];
+				if (g_HumanSearch.ShouldShowItem(human, ambientFemaleOrdinaryMatches, getHumanName))
+				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("AmbientFemaleOrdinary_" + human.model + "_" + std::to_string(i)).c_str());
+					if (ImGui::Button(human.model.c_str(), ImVec2(-1, 25)))
+					{
+						if (g_SetModelMode)
+						{
+							SetPlayerModel(human.model, g_Variation);
+						}
+						else
+						{
+							SpawnPed(human.model, g_Variation, g_Armed);
+						}
+					}
+					ImGui::PopID();
+				}
+			}
+
+			ImGui::Spacing();
+		}
+
+		// ambient male section
+		if (showAmbientMale)
+		{
+			RenderCenteredSeparator("Ambient Male");
+
+			for (size_t i = 0; i < g_AmbientMale.size(); ++i)
+			{
+				const auto& human = g_AmbientMale[i];
+				if (g_HumanSearch.ShouldShowItem(human, ambientMaleMatches, getHumanName))
+				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("AmbientMale_" + human.model + "_" + std::to_string(i)).c_str());
+					if (ImGui::Button(human.model.c_str(), ImVec2(-1, 25)))
+					{
+						if (g_SetModelMode)
+						{
+							SetPlayerModel(human.model, g_Variation);
+						}
+						else
+						{
+							SpawnPed(human.model, g_Variation, g_Armed);
+						}
+					}
+					ImGui::PopID();
+				}
+			}
+
+			ImGui::Spacing();
+		}
+
+		// ambient male ordinary section
+		if (showAmbientMaleOrdinary)
+		{
+			RenderCenteredSeparator("Ambient Male Ordinary");
+
+			for (size_t i = 0; i < g_AmbientMaleOrdinary.size(); ++i)
+			{
+				const auto& human = g_AmbientMaleOrdinary[i];
+				if (g_HumanSearch.ShouldShowItem(human, ambientMaleOrdinaryMatches, getHumanName))
+				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("AmbientMaleOrdinary_" + human.model + "_" + std::to_string(i)).c_str());
+					if (ImGui::Button(human.model.c_str(), ImVec2(-1, 25)))
+					{
+						if (g_SetModelMode)
+						{
+							SetPlayerModel(human.model, g_Variation);
+						}
+						else
+						{
+							SpawnPed(human.model, g_Variation, g_Armed);
+						}
+					}
+					ImGui::PopID();
+				}
+			}
+
+			ImGui::Spacing();
+		}
+
+		// ambient male suppressed section
+		if (showAmbientMaleSuppressed)
+		{
+			RenderCenteredSeparator("Ambient Male Suppressed");
+
+			for (size_t i = 0; i < g_AmbientMaleSuppressed.size(); ++i)
+			{
+				const auto& human = g_AmbientMaleSuppressed[i];
+				if (g_HumanSearch.ShouldShowItem(human, ambientMaleSuppressedMatches, getHumanName))
+				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("AmbientMaleSuppressed_" + human.model + "_" + std::to_string(i)).c_str());
+					if (ImGui::Button(human.model.c_str(), ImVec2(-1, 25)))
+					{
+						if (g_SetModelMode)
+						{
+							SetPlayerModel(human.model, g_Variation);
+						}
+						else
+						{
+							SpawnPed(human.model, g_Variation, g_Armed);
+						}
+					}
+					ImGui::PopID();
+				}
+			}
+
+			ImGui::Spacing();
+		}
+
+		// cutscene section
+		if (showCutscene)
+		{
+			RenderCenteredSeparator("Cutscene");
+
+			for (size_t i = 0; i < g_Cutscene.size(); ++i)
+			{
+				const auto& human = g_Cutscene[i];
+				if (g_HumanSearch.ShouldShowItem(human, cutsceneMatches, getHumanName))
+				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("Cutscene_" + human.model + "_" + std::to_string(i)).c_str());
+					if (ImGui::Button(human.model.c_str(), ImVec2(-1, 25)))
+					{
+						if (g_SetModelMode)
+						{
+							SetPlayerModel(human.model, g_Variation);
+						}
+						else
+						{
+							SpawnPed(human.model, g_Variation, g_Armed);
+						}
+					}
+					ImGui::PopID();
+				}
+			}
+
+			ImGui::Spacing();
+		}
+
+		// multiplayer cutscene section
+		if (showMultiplayerCutscene)
+		{
+			RenderCenteredSeparator("Multiplayer Cutscene");
+
+			for (size_t i = 0; i < g_MultiplayerCutscene.size(); ++i)
+			{
+				const auto& human = g_MultiplayerCutscene[i];
+				if (g_HumanSearch.ShouldShowItem(human, multiplayerCutsceneMatches, getHumanName))
+				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("MultiplayerCutscene_" + human.model + "_" + std::to_string(i)).c_str());
+					if (ImGui::Button(human.model.c_str(), ImVec2(-1, 25)))
+					{
+						if (g_SetModelMode)
+						{
+							SetPlayerModel(human.model, g_Variation);
+						}
+						else
+						{
+							SpawnPed(human.model, g_Variation, g_Armed);
+						}
+					}
+					ImGui::PopID();
+				}
+			}
+
+			ImGui::Spacing();
+		}
+
+		// gang section
+		if (showGang)
+		{
+			RenderCenteredSeparator("Gang");
+
+			for (size_t i = 0; i < g_Gang.size(); ++i)
+			{
+				const auto& human = g_Gang[i];
+				if (g_HumanSearch.ShouldShowItem(human, gangMatches, getHumanName))
+				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("Gang_" + human.model + "_" + std::to_string(i)).c_str());
+					if (ImGui::Button(human.model.c_str(), ImVec2(-1, 25)))
+					{
+						if (g_SetModelMode)
+						{
+							SetPlayerModel(human.model, g_Variation);
+						}
+						else
+						{
+							SpawnPed(human.model, g_Variation, g_Armed);
+						}
+					}
+					ImGui::PopID();
+				}
+			}
+
+			ImGui::Spacing();
+		}
+
+		// story finale section
+		if (showStoryFinale)
+		{
+			RenderCenteredSeparator("Story Finale");
+
+			for (size_t i = 0; i < g_StoryFinale.size(); ++i)
+			{
+				const auto& human = g_StoryFinale[i];
+				if (g_HumanSearch.ShouldShowItem(human, storyFinaleMatches, getHumanName))
+				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("StoryFinale_" + human.model + "_" + std::to_string(i)).c_str());
+					if (ImGui::Button(human.model.c_str(), ImVec2(-1, 25)))
+					{
+						if (g_SetModelMode)
+						{
+							SetPlayerModel(human.model, g_Variation);
+						}
+						else
+						{
+							SpawnPed(human.model, g_Variation, g_Armed);
+						}
+					}
+					ImGui::PopID();
+				}
+			}
+
+			ImGui::Spacing();
+		}
+
+		// multiplayer blood money section
+		if (showMultiplayerBloodMoney)
+		{
+			RenderCenteredSeparator("Multiplayer Blood Money");
+
+			for (size_t i = 0; i < g_MultiplayerBloodMoney.size(); ++i)
+			{
+				const auto& human = g_MultiplayerBloodMoney[i];
+				if (g_HumanSearch.ShouldShowItem(human, multiplayerBloodMoneyMatches, getHumanName))
+				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("MultiplayerBloodMoney_" + human.model + "_" + std::to_string(i)).c_str());
+					if (ImGui::Button(human.model.c_str(), ImVec2(-1, 25)))
+					{
+						if (g_SetModelMode)
+						{
+							SetPlayerModel(human.model, g_Variation);
+						}
+						else
+						{
+							SpawnPed(human.model, g_Variation, g_Armed);
+						}
+					}
+					ImGui::PopID();
+				}
+			}
+
+			ImGui::Spacing();
+		}
+
+		// multiplayer bounty hunters section
+		if (showMultiplayerBountyHunters)
+		{
+			RenderCenteredSeparator("Multiplayer Bounty Hunters");
+
+			for (size_t i = 0; i < g_MultiplayerBountyHunters.size(); ++i)
+			{
+				const auto& human = g_MultiplayerBountyHunters[i];
+				if (g_HumanSearch.ShouldShowItem(human, multiplayerBountyHuntersMatches, getHumanName))
+				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("MultiplayerBountyHunters_" + human.model + "_" + std::to_string(i)).c_str());
+					if (ImGui::Button(human.model.c_str(), ImVec2(-1, 25)))
+					{
+						if (g_SetModelMode)
+						{
+							SetPlayerModel(human.model, g_Variation);
+						}
+						else
+						{
+							SpawnPed(human.model, g_Variation, g_Armed);
+						}
+					}
+					ImGui::PopID();
+				}
+			}
+
+			ImGui::Spacing();
+		}
+
+		// multiplayer naturalist section
+		if (showMultiplayerNaturalist)
+		{
+			RenderCenteredSeparator("Multiplayer Naturalist");
+
+			for (size_t i = 0; i < g_MultiplayerNaturalist.size(); ++i)
+			{
+				const auto& human = g_MultiplayerNaturalist[i];
+				if (g_HumanSearch.ShouldShowItem(human, multiplayerNaturalistMatches, getHumanName))
+				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("MultiplayerNaturalist_" + human.model + "_" + std::to_string(i)).c_str());
+					if (ImGui::Button(human.model.c_str(), ImVec2(-1, 25)))
+					{
+						if (g_SetModelMode)
+						{
+							SetPlayerModel(human.model, g_Variation);
+						}
+						else
+						{
+							SpawnPed(human.model, g_Variation, g_Armed);
+						}
+					}
+					ImGui::PopID();
+				}
+			}
+
+			ImGui::Spacing();
+		}
+
+		// multiplayer section
+		if (showMultiplayer)
+		{
+			RenderCenteredSeparator("Multiplayer");
+
+			for (size_t i = 0; i < g_Multiplayer.size(); ++i)
+			{
+				const auto& human = g_Multiplayer[i];
+				if (g_HumanSearch.ShouldShowItem(human, multiplayerMatches, getHumanName))
+				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("Multiplayer_" + human.model + "_" + std::to_string(i)).c_str());
+					if (ImGui::Button(human.model.c_str(), ImVec2(-1, 25)))
+					{
+						if (g_SetModelMode)
+						{
+							SetPlayerModel(human.model, g_Variation);
+						}
+						else
+						{
+							SpawnPed(human.model, g_Variation, g_Armed);
+						}
+					}
+					ImGui::PopID();
+				}
+			}
+
+			ImGui::Spacing();
+		}
+
+		// story section
+		if (showStory)
+		{
+			RenderCenteredSeparator("Story");
+
+			for (size_t i = 0; i < g_Story.size(); ++i)
+			{
+				const auto& human = g_Story[i];
+				if (g_HumanSearch.ShouldShowItem(human, storyMatches, getHumanName))
+				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("Story_" + human.model + "_" + std::to_string(i)).c_str());
+					if (ImGui::Button(human.model.c_str(), ImVec2(-1, 25)))
+					{
+						if (g_SetModelMode)
+						{
+							SetPlayerModel(human.model, g_Variation);
+						}
+						else
+						{
+							SpawnPed(human.model, g_Variation, g_Armed);
+						}
+					}
+					ImGui::PopID();
+				}
+			}
+
+			ImGui::Spacing();
+		}
+
+		// random event section
+		if (showRandomEvent)
+		{
+			RenderCenteredSeparator("Random Event");
+
+			for (size_t i = 0; i < g_RandomEvent.size(); ++i)
+			{
+				const auto& human = g_RandomEvent[i];
+				if (g_HumanSearch.ShouldShowItem(human, randomEventMatches, getHumanName))
+				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("RandomEvent_" + human.model + "_" + std::to_string(i)).c_str());
+					if (ImGui::Button(human.model.c_str(), ImVec2(-1, 25)))
+					{
+						if (g_SetModelMode)
+						{
+							SetPlayerModel(human.model, g_Variation);
+						}
+						else
+						{
+							SpawnPed(human.model, g_Variation, g_Armed);
+						}
+					}
+					ImGui::PopID();
+				}
+			}
+
+			ImGui::Spacing();
+		}
+
+		// scenario section
+		if (showScenario)
+		{
+			RenderCenteredSeparator("Scenario");
+
+			for (size_t i = 0; i < g_Scenario.size(); ++i)
+			{
+				const auto& human = g_Scenario[i];
+				if (g_HumanSearch.ShouldShowItem(human, scenarioMatches, getHumanName))
+				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("Scenario_" + human.model + "_" + std::to_string(i)).c_str());
+					if (ImGui::Button(human.model.c_str(), ImVec2(-1, 25)))
+					{
+						if (g_SetModelMode)
+						{
+							SetPlayerModel(human.model, g_Variation);
+						}
+						else
+						{
+							SpawnPed(human.model, g_Variation, g_Armed);
+						}
+					}
+					ImGui::PopID();
+				}
+			}
+
+			ImGui::Spacing();
+		}
+
+		// story scenario female section
+		if (showStoryScenarioFemale)
+		{
+			RenderCenteredSeparator("Story Scenario Female");
+
+			for (size_t i = 0; i < g_StoryScenarioFemale.size(); ++i)
+			{
+				const auto& human = g_StoryScenarioFemale[i];
+				if (g_HumanSearch.ShouldShowItem(human, storyScenarioFemaleMatches, getHumanName))
+				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("StoryScenarioFemale_" + human.model + "_" + std::to_string(i)).c_str());
+					if (ImGui::Button(human.model.c_str(), ImVec2(-1, 25)))
+					{
+						if (g_SetModelMode)
+						{
+							SetPlayerModel(human.model, g_Variation);
+						}
+						else
+						{
+							SpawnPed(human.model, g_Variation, g_Armed);
+						}
+					}
+					ImGui::PopID();
+				}
+			}
+
+			ImGui::Spacing();
+		}
+
+		// story scenario male section
+		if (showStoryScenarioMale)
+		{
+			RenderCenteredSeparator("Story Scenario Male");
+
+			for (size_t i = 0; i < g_StoryScenarioMale.size(); ++i)
+			{
+				const auto& human = g_StoryScenarioMale[i];
+				if (g_HumanSearch.ShouldShowItem(human, storyScenarioMaleMatches, getHumanName))
+				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("StoryScenarioMale_" + human.model + "_" + std::to_string(i)).c_str());
+					if (ImGui::Button(human.model.c_str(), ImVec2(-1, 25)))
+					{
+						if (g_SetModelMode)
+						{
+							SetPlayerModel(human.model, g_Variation);
+						}
+						else
+						{
+							SpawnPed(human.model, g_Variation, g_Armed);
+						}
+					}
+					ImGui::PopID();
+				}
+			}
+
+			ImGui::Spacing();
+		}
+
+		// miscellaneous section
+		if (showMiscellaneous)
+		{
+			RenderCenteredSeparator("Miscellaneous");
+
+			for (size_t i = 0; i < g_Miscellaneous.size(); ++i)
+			{
+				const auto& human = g_Miscellaneous[i];
+				if (g_HumanSearch.ShouldShowItem(human, miscellaneousMatches, getHumanName))
+				{
+					// use unique ID with section prefix to prevent cross-section duplicates
+					ImGui::PushID(("Miscellaneous_" + human.model + "_" + std::to_string(i)).c_str());
+					if (ImGui::Button(human.model.c_str(), ImVec2(-1, 25)))
+					{
+						if (g_SetModelMode)
+						{
+							SetPlayerModel(human.model, g_Variation);
+						}
+						else
+						{
+							SpawnPed(human.model, g_Variation, g_Armed);
+						}
+					}
+					ImGui::PopID();
+				}
+			}
+
+			ImGui::Spacing();
+		}
+
+		// show helpful message when no matches found
+		if (!showAmbientFemale && !showAmbientFemaleOrdinary && !showAmbientMale && !showAmbientMaleOrdinary &&
+		    !showAmbientMaleSuppressed && !showCutscene && !showMultiplayerCutscene && !showGang &&
+		    !showStoryFinale && !showMultiplayerBloodMoney && !showMultiplayerBountyHunters &&
+		    !showMultiplayerNaturalist && !showMultiplayer && !showStory && !showRandomEvent &&
+		    !showScenario && !showStoryScenarioFemale && !showStoryScenarioMale && !showMiscellaneous &&
+		    !g_HumanSearch.searchBuffer.empty())
+		{
+			ImGui::Text("No humans or sections match your search");
+			ImGui::Text("Try searching for: 'ambient', 'cutscene', 'gang', 'multiplayer', etc.");
+		}
 	}
 
 	// horse data structure
