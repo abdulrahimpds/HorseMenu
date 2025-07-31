@@ -5384,14 +5384,8 @@ namespace YimMenu::Submenus
 		// action buttons
 		if (ImGui::Button("Spawn"))
 		{
-			if (g_SetModelMode)
-			{
-				SetPlayerModel(g_PedModelBuffer, g_Variation, false);
-			}
-			else
-			{
-				SpawnPed(g_PedModelBuffer, g_Variation, true); // true = give weapon if armed is enabled
-			}
+			// main spawn button always spawns a ped, not affected by set model checkbox
+			SpawnPed(g_PedModelBuffer, g_Variation, true); // true = give weapon if armed is enabled
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Set Model"))
