@@ -902,7 +902,7 @@ namespace YimMenu::Submenus
 				// make story gang hostile towards enemy groups (applies to both companion and non-companion)
 				Hash storyGangGroup = "REL_GANG_DUTCHS"_J;
 
-				// set hostile relationships with enemy groups (relationship type 5 = WANTED, more aggressive than 6)
+				// set hostile relationships with enemy groups
 				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_RE_ENEMY"_J);
 				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_PLAYER_ENEMY"_J);
 				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_GANG_ODRISCOLL"_J);
