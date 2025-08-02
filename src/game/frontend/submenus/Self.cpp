@@ -26,9 +26,13 @@ namespace YimMenu::Submenus
 	void RenderAnimationsCategory()
 	{
 		static std::string anim, dict;
+		static bool loopAnimation = false;
+
 		InputTextWithHint("Dictionary", "Enter Dictionary Name", &dict).Draw();
 		InputTextWithHint("Animation", "Enter Animation Name", &anim).Draw();
 
+		ImGui::Checkbox("Loop", &loopAnimation);
+		ImGui::SameLine();
 		if (ImGui::Button("Play Animation"))
 		{
 			FiberPool::Push([=] {
@@ -44,7 +48,9 @@ namespace YimMenu::Submenus
 					ScriptMgr::Yield();
 				}
 
-				TASK::TASK_PLAY_ANIM(YimMenu::Self::GetPed().GetHandle(), dict.c_str(), anim.c_str(), 8.0f, -8.0f, -1, 0, 0, false, false, false, "", 0);
+				// use loop flag to determine animation flags
+				int animFlags = loopAnimation ? 1 : 0; // 1 = loop, 0 = play once
+				TASK::TASK_PLAY_ANIM(YimMenu::Self::GetPed().GetHandle(), dict.c_str(), anim.c_str(), 8.0f, -8.0f, -1, animFlags, 0, false, false, false, "", 0);
 			});
 		}
 
