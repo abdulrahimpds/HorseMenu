@@ -768,6 +768,10 @@ namespace YimMenu::Submenus
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 133, false); // CA_DISABLE_BLANK_SHOTS
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 134, false); // CA_0xA78BB3BD
 
+				// enhanced perception for enemy detection
+				PED::SET_PED_SEEING_RANGE(ped.GetHandle(), 100.0f);
+				PED::SET_PED_HEARING_RANGE(ped.GetHandle(), 100.0f);
+
 				// === ENHANCED GROUP AND RELATIONSHIP SETUP ===
 				ENTITY::SET_ENTITY_AS_MISSION_ENTITY(ped.GetHandle(), true, true);
 				PED::SET_PED_AS_GROUP_MEMBER(ped.GetHandle(), group);
@@ -788,7 +792,8 @@ namespace YimMenu::Submenus
 
 				// enhanced group formation and coordination
 				PED::SET_GROUP_FORMATION(PED::GET_PED_GROUP_INDEX(ped.GetHandle()), g_Formation);
-				PED::SET_GROUP_FORMATION_SPACING(PED::GET_PED_GROUP_INDEX(ped.GetHandle()), 1.0f, 1.0f, 1.0f);
+				// custom spacing: 3m from leader, 2m between companions, 2m formation spread
+				PED::SET_GROUP_FORMATION_SPACING(PED::GET_PED_GROUP_INDEX(ped.GetHandle()), 3.0f, 2.0f, 2.0f);
 
 				// mark as companion for tracking
 				DECORATOR::DECOR_SET_INT(ped.GetHandle(), "SH_CMP_companion", 2);
@@ -892,6 +897,22 @@ namespace YimMenu::Submenus
 					// make gang members friendly with each other (critical for preventing infighting)
 					PED::SET_RELATIONSHIP_BETWEEN_GROUPS(2, storyGangRelationshipGroup, storyGangRelationshipGroup);
 				}
+
+				// === STORY GANG HOSTILE RELATIONSHIPS ===
+				// make story gang hostile towards enemy groups (applies to both companion and non-companion)
+				Hash storyGangGroup = "REL_GANG_DUTCHS"_J;
+
+				// set hostile relationships with enemy groups (relationship type 5 = WANTED, more aggressive than 6)
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_RE_ENEMY"_J);
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_PLAYER_ENEMY"_J);
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_GANG_ODRISCOLL"_J);
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_GANG_MURFREE_BROOD"_J);
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_GANG_SKINNER_BROTHERS"_J);
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_GANG_LARAMIE_GANG"_J);
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_GANG_LEMOYNE_RAIDERS"_J);
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_GANG_CREOLE"_J);
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_GANG_SMUGGLERS"_J);
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_PINKERTONS"_J);
 
 				// === STORY GANG MAINTENANCE LOGIC ===
 				// initial health/stamina/deadeye setup
