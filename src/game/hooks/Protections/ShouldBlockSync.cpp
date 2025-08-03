@@ -18,6 +18,7 @@
 #include <network/CNetworkScSession.hpp>
 #include <network/netObject.hpp>
 #include <network/rlGamerInfo.hpp>
+#include "game/backend/CrashSignatures.hpp"
 #include <network/sync/CProjectBaseSyncDataNode.hpp>
 #include <network/sync/animal/CAnimalCreationData.hpp>
 #include <network/sync/animscene/CAnimSceneCreationData.hpp>
@@ -190,6 +191,13 @@ namespace
 		if (object == -1)
 			return;
 
+		// crash signature protection - only block known crash addresses
+		if (CrashSignatures::IsKnownCrashAddress(static_cast<uintptr_t>(object)))
+		{
+			LOG(WARNING) << "DeleteSyncObject: Blocked known crash signature object " << object;
+			return;
+		}
+
 		Network::ForceRemoveNetworkEntity(object, -1, false);
 	}
 
@@ -198,6 +206,13 @@ namespace
 		FiberPool::Push([object] {
 			if (object == -1)
 				return;
+
+			// crash signature protection - only block known crash addresses
+			if (CrashSignatures::IsKnownCrashAddress(static_cast<uintptr_t>(object)))
+			{
+				LOG(WARNING) << "DeleteSyncObjectLater: Blocked known crash signature object " << object;
+				return;
+			}
 
 			Network::ForceRemoveNetworkEntity(object, -1, true);
 		});
