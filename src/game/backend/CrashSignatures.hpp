@@ -86,6 +86,10 @@ namespace YimMenu::CrashSignatures
 		0x248,  // from crash log 2025-08-03 – attempted to read from 0x248 causing game termination
 		0x1b8,  // from crash log 2025-08-03 – attempted to read from 0x1b8 causing game termination
 
+		0x1A0B8AE88C8, // from crash log 2025-08-03 - attempted to read from 0x1A0B8AE88C8 causing game termination
+		0x1A0B8AE8838, // from crash log 2025-08-03 - attempted to read from 0x1A0B8AE8838 causing game termination
+		0x2949,        // from crash log 2025-08-03 - attempted to execute at 0x2949 causing game termination
+
 		// add new crash signatures here as they are discovered
 		// format: 0x1234567890, // from crash log file - description
 	};

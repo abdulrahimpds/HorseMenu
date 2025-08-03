@@ -1,9 +1,11 @@
 #include "ExceptionHandler.hpp"
 
 #include "StackTrace.hpp"
+#include "game/backend/CrashSignatures.hpp"
 
 #include <hde64.h>
 #include <unordered_set>
+#include <atomic>
 
 
 namespace YimMenu
@@ -35,6 +37,37 @@ namespace YimMenu
 		const auto exception_code = exception_info->ExceptionRecord->ExceptionCode;
 		if (exception_code == EXCEPTION_BREAKPOINT || exception_code == DBG_PRINTEXCEPTION_C || exception_code == DBG_PRINTEXCEPTION_WIDE_C)
 			return EXCEPTION_CONTINUE_SEARCH;
+
+		// enhanced crash protection using crash signature database
+		if (exception_code == EXCEPTION_ACCESS_VIOLATION)
+		{
+			auto violation_address = static_cast<uintptr_t>(exception_info->ExceptionRecord->ExceptionInformation[1]);
+
+			// check if this address is in our crash signature database
+			if (CrashSignatures::IsKnownCrashAddress(violation_address))
+			{
+				static std::atomic<int> known_crash_count = 0;
+				LOG(WARNING) << "Blocked known crash signature at address " << HEX(violation_address)
+				            << " (attempt #" << ++known_crash_count << ")";
+				return EXCEPTION_EXECUTE_HANDLER; // force recovery for known crashes
+			}
+
+			// detect additional memory corruption patterns not in database
+			if (violation_address < 0x1000 ||
+			    (violation_address & 0xFFFF000000000000) == 0x7FF7000000000000)
+			{
+				static std::atomic<int> corruption_count = 0;
+				if (++corruption_count > 10)
+				{
+					LOG(FATAL) << "Too many memory corruption attempts detected, forcing return";
+					return EXCEPTION_EXECUTE_HANDLER; // force recovery
+				}
+
+				// log new potential crash signature for database expansion
+				LOG(WARNING) << "Potential new crash signature detected: " << HEX(violation_address)
+				            << " - consider adding to database";
+			}
+		}
 
 		static std::unordered_set<std::size_t> logged_exceptions;
 
