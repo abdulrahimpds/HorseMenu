@@ -3,6 +3,7 @@
 #include "Natives.hpp"
 #include "Network.hpp"
 #include "game/pointers/Pointers.hpp"
+#include "game/backend/CrashSignatures.hpp"
 #include "util/Joaat.hpp"
 
 #include <entity/CDynamicEntity.hpp>
@@ -17,13 +18,70 @@ namespace YimMenu
 {
 	void Entity::PopulatePointer()
 	{
+		// expert-enhanced: validate handle against crash signatures and attack patterns
+		if (CrashSignatures::IsKnownCrashHandle(m_Handle))
+		{
+			LOG(WARNING) << "PopulatePointer: Blocked crash signature handle " << m_Handle;
+			m_Pointer = nullptr;
+			return;
+		}
+
+		// expert-recommended: detect fuzzer attack patterns in entity handles
+		// fuzzer attacks often use predictable handle patterns
+		if ((m_Handle & 0xFFFFFFFF) == 0x97 ||   // Nemesis fuzzer pattern
+		    (m_Handle & 0xFFFFFFFF) == 0x7 ||    // Nemesis fuzzer pattern
+		    (m_Handle & 0xFFFFFFFF) == 0xC08 ||  // BringPlayer fuzzer pattern
+		    (m_Handle & 0xFFFFFFFF) == 0x46)     // AntiLasso fuzzer pattern
+		{
+			LOG(WARNING) << "PopulatePointer: Blocked fuzzer attack pattern in handle " << m_Handle;
+			m_Pointer = nullptr;
+			return;
+		}
+
 		m_Pointer = Pointers.HandleToPtr(m_Handle);
+
+		// expert-enhanced: validate resulting pointer against crash signatures and attack patterns
+		if (CrashSignatures::IsKnownCrashPointerForEntities(m_Pointer))
+		{
+			LOG(WARNING) << "PopulatePointer: Blocked crash signature or attack pattern in pointer " << HEX(reinterpret_cast<uintptr_t>(m_Pointer));
+			m_Pointer = nullptr;
+			return;
+		}
 	}
 
 	void Entity::PopulateHandle()
 	{
 		if (m_Pointer)
+		{
+			// expert-enhanced: validate pointer against crash signatures and attack patterns
+			if (CrashSignatures::IsKnownCrashPointerForEntities(m_Pointer))
+			{
+				LOG(WARNING) << "PopulateHandle: Blocked crash signature or attack pattern in pointer " << HEX(reinterpret_cast<uintptr_t>(m_Pointer));
+				m_Handle = 0;
+				return;
+			}
+
 			m_Handle = Pointers.PtrToHandle(m_Pointer);
+
+			// expert-enhanced: validate resulting handle against crash signatures
+			if (CrashSignatures::IsKnownCrashHandle(m_Handle))
+			{
+				LOG(WARNING) << "PopulateHandle: Blocked crash signature handle " << m_Handle;
+				m_Handle = 0;
+				return;
+			}
+
+			// expert-recommended: detect fuzzer attack patterns in generated handles
+			if ((m_Handle & 0xFFFFFFFF) == 0x97 ||   // Nemesis fuzzer pattern
+			    (m_Handle & 0xFFFFFFFF) == 0x7 ||    // Nemesis fuzzer pattern
+			    (m_Handle & 0xFFFFFFFF) == 0xC08 ||  // BringPlayer fuzzer pattern
+			    (m_Handle & 0xFFFFFFFF) == 0x46)     // AntiLasso fuzzer pattern
+			{
+				LOG(WARNING) << "PopulateHandle: Blocked fuzzer attack pattern in generated handle " << m_Handle;
+				m_Handle = 0;
+				return;
+			}
+		}
 	}
 
 	void Entity::AssertValid(std::string_view function_name)

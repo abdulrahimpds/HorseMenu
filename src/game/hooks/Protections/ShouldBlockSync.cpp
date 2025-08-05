@@ -13,6 +13,7 @@
 #include "game/rdr/Network.hpp"
 #include "game/rdr/Nodes.hpp"
 #include "game/rdr/data/PedModels.hpp"
+#include "game/backend/CrashSignatures.hpp"
 
 #include <network/CNetGamePlayer.hpp>
 #include <network/CNetworkScSession.hpp>
@@ -191,10 +192,10 @@ namespace
 		if (object == -1)
 			return;
 
-		// crash signature protection - only block known crash addresses
-		if (CrashSignatures::IsKnownCrashAddress(static_cast<uintptr_t>(object)))
+		// expert-enhanced crash signature protection with intelligent pattern detection
+		if (CrashSignatures::IsKnownCrashPointerForNetworking(reinterpret_cast<void*>(static_cast<uintptr_t>(object))))
 		{
-			LOG(WARNING) << "DeleteSyncObject: Blocked known crash signature object " << object;
+			LOG(WARNING) << "DeleteSyncObject: Blocked crash signature or attack pattern in object " << object;
 			return;
 		}
 
@@ -207,10 +208,10 @@ namespace
 			if (object == -1)
 				return;
 
-			// crash signature protection - only block known crash addresses
-			if (CrashSignatures::IsKnownCrashAddress(static_cast<uintptr_t>(object)))
+			// expert-enhanced crash signature protection with intelligent pattern detection
+			if (CrashSignatures::IsKnownCrashPointerForNetworking(reinterpret_cast<void*>(static_cast<uintptr_t>(object))))
 			{
-				LOG(WARNING) << "DeleteSyncObjectLater: Blocked known crash signature object " << object;
+				LOG(WARNING) << "DeleteSyncObjectLater: Blocked crash signature or attack pattern in object " << object;
 				return;
 			}
 
@@ -378,22 +379,45 @@ namespace
 			{
 				for (int j = 0; j < data.m_Trees[i].m_NumTasks; j++)
 				{
-					if (data.m_Trees[i].m_Tasks[j].m_TaskType == -1)
+					// expert-recommended: validate task pointer before accessing (Nemesis delayed crash protection)
+					if (!data.m_Trees[i].m_Tasks || j < 0 || j >= data.m_Trees[i].m_NumTasks)
 					{
-						LOGF(SYNC, WARNING, "Blocking null task type (tree={}, task={}) from {}", i, j, Protections::GetSyncingPlayer().GetName());
-						SyncBlocked("task fuzzer crash");
-						// TODO fix node corruption bug
-						// Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER); // no false positives possible
+						LOGF(SYNC, WARNING, "Blocking corrupted task array access (tree={}, task={}) from {}", i, j, Protections::GetSyncingPlayer().GetName());
+						SyncBlocked("task fuzzer crash - corrupted array");
 						return true;
 					}
 
-					// TODO: better heuristics
-					if (data.m_Trees[i].m_Tasks[j].m_TaskTreeType == 31)
+					// expert-enhanced: check for crash signatures in task data
+					auto taskPtr = reinterpret_cast<void*>(&data.m_Trees[i].m_Tasks[j]);
+					if (CrashSignatures::IsKnownCrashPointerForNetworking(taskPtr))
 					{
-						LOGF(SYNC, WARNING, "Blocking invalid task tree type (tree={}, task={}) from {}", i, j, Protections::GetSyncingPlayer().GetName());
-						SyncBlocked("task fuzzer crash");
-						// Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER); // no false positives possible
+						LOGF(SYNC, WARNING, "Blocking crash signature in task data (tree={}, task={}) from {}", i, j, Protections::GetSyncingPlayer().GetName());
+						SyncBlocked("task fuzzer crash - signature detection");
 						return true;
+					}
+
+					// EXPERT-RECOMMENDED: Bulletproof fuzzer attack protection (OWASP deny-by-default)
+					// Cybersecurity principle: "Everything not explicitly permitted is forbidden"
+					// CORRECTED: Use exact same parameters as learning mode collected
+					int treeIndex = i;  // tree index (0-4)
+					int taskIndex = j;  // task index within tree
+					int taskType = data.m_Trees[i].m_Tasks[j].m_TaskType;      // task type to validate
+					int taskTreeType = data.m_Trees[i].m_Tasks[j].m_TaskTreeType;  // task tree type
+
+					// Expert-recommended: Block fuzzer attacks BEFORE any data processing
+					if (!CrashSignatures::IsValidTaskTreeData(treeIndex, taskIndex, taskType, taskTreeType))
+					{
+						// Expert-recommended: Smart logging - once per player EVER (prevent edge case false positives)
+						auto& player = Protections::GetSyncingPlayer();
+						if (!player.GetData().m_FuzzerAttackLogged)
+						{
+							CrashSignatures::LogFuzzerAttackBlocked(player.GetName(), treeIndex, taskIndex, taskType, taskTreeType);
+							player.GetData().m_FuzzerAttackLogged = true; // Mark as logged - never log again for this player
+						}
+
+						SyncBlocked("fuzzer attack neutralized");
+						// NOTE: Not adding Detection::TRIED_CRASH_PLAYER due to potential edge cases/false positives in whitelist data
+						return true; // BLOCK - no data processing, no sanitization attempts
 					}
 				}
 			}

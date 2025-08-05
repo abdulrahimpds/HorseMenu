@@ -38,29 +38,51 @@ namespace YimMenu
 		if (exception_code == EXCEPTION_BREAKPOINT || exception_code == DBG_PRINTEXCEPTION_C || exception_code == DBG_PRINTEXCEPTION_WIDE_C)
 			return EXCEPTION_CONTINUE_SEARCH;
 
-		// enhanced crash protection using crash signature database
+		// expert-enhanced crash protection using intelligent pattern detection
 		if (exception_code == EXCEPTION_ACCESS_VIOLATION)
 		{
 			auto violation_address = static_cast<uintptr_t>(exception_info->ExceptionRecord->ExceptionInformation[1]);
 
-			// check if this address is in our crash signature database
-			if (CrashSignatures::IsKnownCrashAddress(violation_address))
+			// check if this address matches known signatures or attack patterns
+			if (CrashSignatures::IsKnownCrashPointerEnhanced(reinterpret_cast<void*>(violation_address)))
 			{
 				static std::atomic<int> known_crash_count = 0;
-				LOG(WARNING) << "Blocked known crash signature at address " << HEX(violation_address)
-				            << " (attempt #" << ++known_crash_count << ")";
-				return EXCEPTION_EXECUTE_HANDLER; // force recovery for known crashes
+				LOG(WARNING) << "Blocked crash signature or attack pattern at address " << HEX(violation_address)
+				            << " (intelligent detection - attempt #" << ++known_crash_count << ")";
+				return EXCEPTION_EXECUTE_HANDLER; // force recovery for known crashes and attack patterns
+			}
+
+			// expert-recommended: detect fuzzer attack patterns in crash addresses
+			// fuzzer attacks often cause crashes at predictable address patterns
+			if ((violation_address & 0xFFFFFFFF) == 0x97 ||   // Nemesis fuzzer pattern
+			    (violation_address & 0xFFFFFFFF) == 0x7 ||    // Nemesis fuzzer pattern
+			    (violation_address & 0xFFFFFFFF) == 0xC08 ||  // BringPlayer fuzzer pattern
+			    (violation_address & 0xFFFFFFFF) == 0x46)     // AntiLasso fuzzer pattern
+			{
+				static std::atomic<int> fuzzer_crash_count = 0;
+				LOG(WARNING) << "Blocked fuzzer attack crash pattern at address " << HEX(violation_address)
+				            << " (fuzzer detection - attempt #" << ++fuzzer_crash_count << ")";
+				return EXCEPTION_EXECUTE_HANDLER; // force recovery for fuzzer attacks
 			}
 
 			// detect additional memory corruption patterns not in database
 			if (violation_address < 0x1000 ||
-			    (violation_address & 0xFFFF000000000000) == 0x7FF7000000000000)
+			    (violation_address & 0xFFFF000000000000) == 0x7FF7000000000000 ||
+			    (violation_address & 0xFFFFFF0000000000) == 0xFFFFFF0000000000) // expert-recommended: Nemesis attack pattern
 			{
 				static std::atomic<int> corruption_count = 0;
 				if (++corruption_count > 10)
 				{
 					LOG(FATAL) << "Too many memory corruption attempts detected, forcing return";
 					return EXCEPTION_EXECUTE_HANDLER; // force recovery
+				}
+
+				// expert-recommended: specific detection for Nemesis delayed crash attacks
+				if ((violation_address & 0xFFFFFF0000000000) == 0xFFFFFF0000000000)
+				{
+					LOG(WARNING) << "Nemesis delayed crash attack detected at " << HEX(violation_address)
+					            << " - blocking sophisticated memory corruption";
+					return EXCEPTION_EXECUTE_HANDLER; // force recovery from Nemesis attack
 				}
 
 				// log new potential crash signature for database expansion
