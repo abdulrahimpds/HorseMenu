@@ -18,7 +18,7 @@ namespace YimMenu
 {
 	void Entity::PopulatePointer()
 	{
-		// expert-enhanced: validate handle against crash signatures and attack patterns
+		// validate handle against crash signatures and attack patterns
 		if (CrashSignatures::IsKnownCrashHandle(m_Handle))
 		{
 			LOG(WARNING) << "PopulatePointer: Blocked crash signature handle " << m_Handle;
@@ -26,7 +26,7 @@ namespace YimMenu
 			return;
 		}
 
-		// expert-recommended: detect fuzzer attack patterns in entity handles
+		// detect fuzzer attack patterns in entity handles
 		// fuzzer attacks often use predictable handle patterns
 		if ((m_Handle & 0xFFFFFFFF) == 0x97 ||   // Nemesis fuzzer pattern
 		    (m_Handle & 0xFFFFFFFF) == 0x7 ||    // Nemesis fuzzer pattern
@@ -40,7 +40,7 @@ namespace YimMenu
 
 		m_Pointer = Pointers.HandleToPtr(m_Handle);
 
-		// expert-enhanced: validate resulting pointer against crash signatures and attack patterns
+		// validate resulting pointer against crash signatures and attack patterns
 		if (CrashSignatures::IsKnownCrashPointerForEntities(m_Pointer))
 		{
 			LOG(WARNING) << "PopulatePointer: Blocked crash signature or attack pattern in pointer " << HEX(reinterpret_cast<uintptr_t>(m_Pointer));
@@ -53,7 +53,7 @@ namespace YimMenu
 	{
 		if (m_Pointer)
 		{
-			// expert-enhanced: validate pointer against crash signatures and attack patterns
+			// validate pointer against crash signatures and attack patterns
 			if (CrashSignatures::IsKnownCrashPointerForEntities(m_Pointer))
 			{
 				LOG(WARNING) << "PopulateHandle: Blocked crash signature or attack pattern in pointer " << HEX(reinterpret_cast<uintptr_t>(m_Pointer));
@@ -63,7 +63,7 @@ namespace YimMenu
 
 			m_Handle = Pointers.PtrToHandle(m_Pointer);
 
-			// expert-enhanced: validate resulting handle against crash signatures
+			// validate resulting handle against crash signatures
 			if (CrashSignatures::IsKnownCrashHandle(m_Handle))
 			{
 				LOG(WARNING) << "PopulateHandle: Blocked crash signature handle " << m_Handle;
@@ -71,7 +71,7 @@ namespace YimMenu
 				return;
 			}
 
-			// expert-recommended: detect fuzzer attack patterns in generated handles
+			// detect fuzzer attack patterns in generated handles
 			if ((m_Handle & 0xFFFFFFFF) == 0x97 ||   // Nemesis fuzzer pattern
 			    (m_Handle & 0xFFFFFFFF) == 0x7 ||    // Nemesis fuzzer pattern
 			    (m_Handle & 0xFFFFFFFF) == 0xC08 ||  // BringPlayer fuzzer pattern

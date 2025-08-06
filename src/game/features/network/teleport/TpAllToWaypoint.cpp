@@ -13,14 +13,14 @@ namespace YimMenu::Features
 
 		virtual void OnCall() override
 		{
-			// expert-recommended: validate waypoint exists before teleporting
+			// validate waypoint exists before teleporting
 			if (!MAP::IS_WAYPOINT_ACTIVE())
 			{
 				LOG(WARNING) << "TpAllToWaypoint: No waypoint active - cannot teleport players";
 				return;
 			}
 
-			// expert-recommended: get waypoint coords once and validate
+			// get waypoint coords once and validate
 			auto waypointCoords = Teleport::GetWaypointCoords();
 			if (waypointCoords.x == 0.0f && waypointCoords.y == 0.0f && waypointCoords.z == 0.0f)
 			{
@@ -28,7 +28,7 @@ namespace YimMenu::Features
 				return;
 			}
 
-			// expert-recommended: validate each player before teleporting
+			// validate each player before teleporting
 			for (auto& [idx, player] : Players::GetPlayers())
 			{
 				// validate player object before use
@@ -46,7 +46,7 @@ namespace YimMenu::Features
 					continue;
 				}
 
-				// expert-recommended: wrap teleport call in exception handling
+				// wrap teleport call in exception handling
 				try
 				{
 					Teleport::TeleportPlayerToCoords(player, waypointCoords);

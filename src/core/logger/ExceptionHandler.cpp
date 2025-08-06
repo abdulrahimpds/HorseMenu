@@ -38,7 +38,7 @@ namespace YimMenu
 		if (exception_code == EXCEPTION_BREAKPOINT || exception_code == DBG_PRINTEXCEPTION_C || exception_code == DBG_PRINTEXCEPTION_WIDE_C)
 			return EXCEPTION_CONTINUE_SEARCH;
 
-		// expert-enhanced crash protection using intelligent pattern detection
+		// crash protection using intelligent pattern detection
 		if (exception_code == EXCEPTION_ACCESS_VIOLATION)
 		{
 			auto violation_address = static_cast<uintptr_t>(exception_info->ExceptionRecord->ExceptionInformation[1]);
@@ -55,7 +55,7 @@ namespace YimMenu
 			// detect additional memory corruption patterns not in database
 			if (violation_address < 0x1000 ||
 			    (violation_address & 0xFFFF000000000000) == 0x7FF7000000000000 ||
-			    (violation_address & 0xFFFFFF0000000000) == 0xFFFFFF0000000000) // expert-recommended: Nemesis attack pattern
+			    (violation_address & 0xFFFFFF0000000000) == 0xFFFFFF0000000000) // Nemesis attack pattern
 			{
 				static std::atomic<int> corruption_count = 0;
 				if (++corruption_count > 10)
@@ -64,7 +64,7 @@ namespace YimMenu
 					return EXCEPTION_EXECUTE_HANDLER; // force recovery
 				}
 
-				// expert-recommended: specific detection for Nemesis delayed crash attacks
+				// specific detection for Nemesis delayed crash attacks
 				if ((violation_address & 0xFFFFFF0000000000) == 0xFFFFFF0000000000)
 				{
 					LOG(WARNING) << "Nemesis delayed crash attack detected at " << HEX(violation_address)

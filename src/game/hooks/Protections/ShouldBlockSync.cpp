@@ -14,6 +14,7 @@
 #include "game/rdr/Nodes.hpp"
 #include "game/rdr/data/PedModels.hpp"
 #include "game/backend/CrashSignatures.hpp"
+#include <format>
 
 #include <network/CNetGamePlayer.hpp>
 #include <network/CNetworkScSession.hpp>
@@ -182,8 +183,10 @@ namespace
 		if (source)
 		{
 			LOGF(WARNING, "Blocked {} from {}", crash, source.GetName());
-			auto name = source.GetName();
-			Notifications::Show("Protections", std::format("Blocked {} from {}", crash, name), NotificationType::Warning);
+		}
+		else
+		{
+			LOGF(WARNING, "Blocked {}", crash);
 		}
 	}
 
@@ -192,7 +195,7 @@ namespace
 		if (object == -1)
 			return;
 
-		// expert-enhanced crash signature protection with intelligent pattern detection
+		// crash signature protection with intelligent pattern detection
 		if (CrashSignatures::IsKnownCrashPointerForNetworking(reinterpret_cast<void*>(static_cast<uintptr_t>(object))))
 		{
 			LOG(WARNING) << "DeleteSyncObject: Blocked crash signature or attack pattern in object " << object;
@@ -202,13 +205,76 @@ namespace
 		Network::ForceRemoveNetworkEntity(object, -1, false);
 	}
 
+	// Connection-level blocking for spam attackers
+	// "keep a per‑player attack counter and temporarily block all incoming sync packets"
+	inline bool ShouldBlockPlayerConnection(YimMenu::Player& player, bool isAttack = false)
+	{
+		if (!player.IsValid())
+			return false;
+
+		auto& data = player.GetData();
+		auto now = std::chrono::steady_clock::now();
+
+		// Check if player is currently blocked and if block period has expired
+		if (data.m_ConnectionBlocked)
+		{
+			if (now >= data.m_BlockedUntil)
+			{
+				// Unblock the player after 5 minutes
+				data.m_ConnectionBlocked = false;
+				data.m_FuzzerAttackCount = 0; // Reset attack count
+				LOGF(SYNC, INFO, "UNBLOCKED connection from {} after 5-minute timeout", player.GetName());
+			}
+			else
+			{
+				// Still blocked - drop all packets silently
+				return true;
+			}
+		}
+
+		// Check total attack threshold (15 attacks = permanent block for 5 minutes)
+		if (data.m_FuzzerAttackCount >= 15)
+		{
+			data.m_ConnectionBlocked = true;
+			data.m_BlockedUntil = now + std::chrono::minutes(5);
+
+			LOGF(SYNC, WARNING, "BLOCKED CONNECTION from {} - exceeded total attack threshold ({} attacks)",
+				player.GetName(), data.m_FuzzerAttackCount);
+
+			Notifications::Show("Protections",
+				std::format("Blocked connection from {} - exceeded attack threshold", player.GetName()),
+				NotificationType::Warning);
+
+			return true;
+		}
+
+		// EXPERT FIX: Only process rate limiter when this is actually an attack
+		// This prevents blocking legitimate players for normal sync traffic
+		if (isAttack && data.m_FuzzerAttackRateLimit.Process())
+		{
+			data.m_ConnectionBlocked = true;
+			data.m_BlockedUntil = now + std::chrono::minutes(5);
+
+			LOGF(SYNC, WARNING, "BLOCKED CONNECTION from {} - exceeded rate limit (20+ attacks/minute)",
+				player.GetName());
+
+			Notifications::Show("Protections",
+				std::format("Blocked connection from {} - spam attack detected", player.GetName()),
+				NotificationType::Warning);
+
+			return true;
+		}
+
+		return false;
+	}
+
 	inline void DeleteSyncObjectLater(std::uint16_t object)
 	{
 		FiberPool::Push([object] {
 			if (object == -1)
 				return;
 
-			// expert-enhanced crash signature protection with intelligent pattern detection
+			// crash signature protection with intelligent pattern detection
 			if (CrashSignatures::IsKnownCrashPointerForNetworking(reinterpret_cast<void*>(static_cast<uintptr_t>(object))))
 			{
 				LOG(WARNING) << "DeleteSyncObjectLater: Blocked crash signature or attack pattern in object " << object;
@@ -375,54 +441,92 @@ namespace
 		{
 			auto& data = node->GetData<CPedTaskTreeData>();
 
-			for (int i = 0; i < data.GetNumTaskTrees(); i++)
+			// validate tree count first
+			int numTrees = data.GetNumTaskTrees();
+			if (numTrees < 0 || numTrees > 5) // RDR2 uses 5 sync trees (0-4)
 			{
-				for (int j = 0; j < data.m_Trees[i].m_NumTasks; j++)
+				LOGF(SYNC, WARNING, "Blocking invalid tree count ({}) from {}", numTrees, Protections::GetSyncingPlayer().GetName());
+				SyncBlocked("task fuzzer crash - invalid tree count");
+				return true;
+			}
+
+			for (int i = 0; i < numTrees; i++)
+			{
+				// validate tree structure before accessing tasks
+				if (!data.m_Trees[i].m_Tasks)
 				{
-					// expert-recommended: validate task pointer before accessing (Nemesis delayed crash protection)
-					if (!data.m_Trees[i].m_Tasks || j < 0 || j >= data.m_Trees[i].m_NumTasks)
+					LOGF(SYNC, WARNING, "Blocking null task array (tree={}) from {}", i, Protections::GetSyncingPlayer().GetName());
+					SyncBlocked("task fuzzer crash - null task array");
+					return true;
+				}
+
+				// validate task count with reasonable bounds
+				int numTasks = data.m_Trees[i].m_NumTasks;
+				if (numTasks < 0 || numTasks > 32) // reasonable upper bound based on game analysis
+				{
+					LOGF(SYNC, WARNING, "Blocking invalid task count (tree={}, tasks={}) from {}", i, numTasks, Protections::GetSyncingPlayer().GetName());
+					SyncBlocked("task fuzzer crash - invalid task count");
+					return true;
+				}
+
+				// check for crash signatures in task array pointer
+				if (CrashSignatures::IsKnownCrashPointerForNetworking(data.m_Trees[i].m_Tasks))
+				{
+					LOGF(SYNC, WARNING, "Blocking crash signature in task array pointer (tree={}) from {}", i, Protections::GetSyncingPlayer().GetName());
+					SyncBlocked("task fuzzer crash - array pointer signature");
+					return true;
+				}
+
+				for (int j = 0; j < numTasks; j++)
+				{
+					// validate individual task element pointer
+					auto* taskElement = &data.m_Trees[i].m_Tasks[j];
+					if (CrashSignatures::IsKnownCrashPointerForNetworking(taskElement))
 					{
-						LOGF(SYNC, WARNING, "Blocking corrupted task array access (tree={}, task={}) from {}", i, j, Protections::GetSyncingPlayer().GetName());
-						SyncBlocked("task fuzzer crash - corrupted array");
+						LOGF(SYNC, WARNING, "Blocking crash signature in task element (tree={}, task={}) from {}", i, j, Protections::GetSyncingPlayer().GetName());
+						SyncBlocked("task fuzzer crash - task element signature");
 						return true;
 					}
 
-					// expert-enhanced: check for crash signatures in task data
-					auto taskPtr = reinterpret_cast<void*>(&data.m_Trees[i].m_Tasks[j]);
-					if (CrashSignatures::IsKnownCrashPointerForNetworking(taskPtr))
+					// read task data safely with exception protection
+					int taskType, taskTreeType;
+					try
 					{
-						LOGF(SYNC, WARNING, "Blocking crash signature in task data (tree={}, task={}) from {}", i, j, Protections::GetSyncingPlayer().GetName());
-						SyncBlocked("task fuzzer crash - signature detection");
+						taskType = data.m_Trees[i].m_Tasks[j].m_TaskType;
+						taskTreeType = data.m_Trees[i].m_Tasks[j].m_TaskTreeType;
+					}
+					catch (...)
+					{
+						LOGF(SYNC, WARNING, "Exception reading task data (tree={}, task={}) from {}", i, j, Protections::GetSyncingPlayer().GetName());
+						SyncBlocked("task fuzzer crash - read exception");
 						return true;
 					}
 
-					// cybersecurity expert-recommended: corrected whitelist validation (OWASP deny-by-default)
-					// CORRECTED: based on expert analysis of parameter confusion - now using all 4 parameters
-					int treeIndex = i;  // this is the tree index (0-4)
-					int taskIndex = j;  // this is the task index within the tree
-					int taskType = data.m_Trees[i].m_Tasks[j].m_TaskType;      // this is the task type to validate
-					int taskTreeType = data.m_Trees[i].m_Tasks[j].m_TaskTreeType;  // this is the taskTreeType (0-3 legitimate, 24+ attack)
-
-					if (!CrashSignatures::IsValidTaskTreeData(treeIndex, taskIndex, taskType, taskTreeType))
+					// Triple validation using only semantic fields
+					// This avoids the brittleness of array position matching
+					if (!CrashSignatures::IsValidTaskTriple(i, taskType, taskTreeType))
 					{
-						LOGF(SYNC, WARNING, "Blocking task fuzzer attack - whitelist validation (treeIndex={}, taskIndex={}, taskType={}, taskTreeType={}) from {}",
-							treeIndex, taskIndex, taskType, taskTreeType, Protections::GetSyncingPlayer().GetName());
-						SyncBlocked("task fuzzer crash - whitelist validation");
+						// Smart logging with rate limiting
+						std::string attackDetails = std::format("invalid task triple (tree={}, taskType={}, taskTreeType={})",
+							i, taskType, taskTreeType);
+						CrashSignatures::LogFuzzerAttackOnce(Protections::GetSyncingPlayer().GetName(), attackDetails);
 
-						// expert-recommended: sanitize corrupted task data
-						try
+						// Increment fuzzer attack counter and trigger connection-level blocking
+						auto player = Protections::GetSyncingPlayer();
+						if (player.IsValid())
 						{
-							data.m_Trees[i].m_Tasks[j].m_TaskType = 0;
-							data.m_Trees[i].m_Tasks[j].m_TaskTreeType = 0;
-							data.m_Trees[i].m_Tasks[j].m_TaskSequenceId = 0;
-							data.m_Trees[i].m_Tasks[j].m_TaskTreeDepth = 0;
-						}
-						catch (...)
-						{
-							LOGF(SYNC, WARNING, "Exception during task data sanitization");
+							auto& playerData = player.GetData();
+							playerData.m_FuzzerAttackCount++;
+
+							// EXPERT FIX: Trigger connection-level blocking with isAttack=true for rate limiting
+							ShouldBlockPlayerConnection(player, true);
+
+							LOGF(SYNC, WARNING, "Fuzzer attack #{} from {} - invalid task triple (tree={}, taskType={}, taskTreeType={})",
+								playerData.m_FuzzerAttackCount, player.GetName(), i, taskType, taskTreeType);
 						}
 
-						Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
+						SyncBlocked("task fuzzer attack - triple validation");
+						// player.AddDetection(Detection::TRIED_CRASH_PLAYER); we dont want to flag them as modders as it contains failsafes
 						return true;
 					}
 				}
@@ -642,6 +746,16 @@ namespace YimMenu::Hooks::Protections
 	bool ShouldBlockSync(rage::netSyncTree* tree, NetObjType type, rage::netObject* object)
 	{
 		Nodes::Init();
+
+		// Connection-level blocking for spam attackers
+		// "At the start of processing a data node... call ShouldBlockPlayerConnection()"
+		// "If it returns true, simply return true... so the sync packet is dropped without further processing"
+		auto syncingPlayer = ::YimMenu::Protections::GetSyncingPlayer();
+		if (syncingPlayer.IsValid() && ShouldBlockPlayerConnection(syncingPlayer))
+		{
+			// Connection blocked - drop packet silently without any processing to prevent resource drain
+			return true;
+		}
 
 		if (g_Running && SyncNodeVisitor(reinterpret_cast<CProjectBaseSyncDataNode*>(tree->m_NextSyncNode), type, object))
 		{

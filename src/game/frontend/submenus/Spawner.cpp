@@ -394,7 +394,6 @@ namespace YimMenu::Submenus
 			invoker.PushArg(isFemale ? 1.0f : 0.0f); // 0.0 = male, 1.0 = female
 			Pointers.GetNativeHandler(0x5653AB26C82938CF)(&invoker.m_CallContext);
 
-			// reset ped customization as recommended in discovered_natives_by_community.txt
 			// 0xCC8CA3E88256E58F with parameters: ped, false, true, true, true, false
 			invoker.BeginCall();
 			invoker.PushArg(horse.GetHandle());

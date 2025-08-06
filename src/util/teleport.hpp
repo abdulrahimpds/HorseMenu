@@ -131,14 +131,14 @@ namespace YimMenu::Teleport
 
 	inline bool TeleportPlayerToCoords(Player player, Vector3 coords)
 	{
-		// expert-recommended: validate player before any operations (exact crash location from .map analysis)
+		// validate player before any operations (exact crash location from .map analysis)
 		if (!player.IsValid())
 		{
 			LOG(WARNING) << "TeleportPlayerToCoords: Invalid player object - skipping teleport";
 			return false;
 		}
 
-		// expert-recommended: validate player ped before accessing
+		// validate player ped before accessing
 		auto playerPed = player.GetPed();
 		if (!playerPed.IsValid())
 		{
@@ -146,7 +146,7 @@ namespace YimMenu::Teleport
 			return false;
 		}
 
-		// expert-recommended: validate ped pointer against crash signature database with intelligent pattern detection
+		// validate ped pointer against crash signature database with intelligent pattern detection
 		auto pedPtr = playerPed.GetPointer<void*>();
 		if (CrashSignatures::IsKnownCrashPointerEnhanced(pedPtr))
 		{
@@ -154,7 +154,7 @@ namespace YimMenu::Teleport
 			return false;
 		}
 
-		// expert-recommended: wrap handle access in exception handling
+		// wrap handle access in exception handling
 		int handle = 0;
 		try
 		{
@@ -172,7 +172,7 @@ namespace YimMenu::Teleport
 			return false;
 		}
 
-		// expert-recommended: validate mount access with exception handling
+		// validate mount access with exception handling
 		try
 		{
 			if (playerPed.GetMount())
@@ -185,7 +185,7 @@ namespace YimMenu::Teleport
 			LOG(WARNING) << "TeleportPlayerToCoords: Exception accessing mount - continuing without mount control";
 		}
 
-		// expert-recommended: validate player position before vehicle creation
+		// validate player position before vehicle creation
 		rage::fvector3 playerPos;
 		try
 		{
@@ -197,7 +197,7 @@ namespace YimMenu::Teleport
 			return false;
 		}
 
-		// expert-recommended: validate position coordinates
+		// validate position coordinates
 		if (std::isnan(playerPos.x) || std::isnan(playerPos.y) || std::isnan(playerPos.z) ||
 		    std::isinf(playerPos.x) || std::isinf(playerPos.y) || std::isinf(playerPos.z) ||
 		    playerPos.x == 0.0f && playerPos.y == 0.0f && playerPos.z == 0.0f)
@@ -206,7 +206,7 @@ namespace YimMenu::Teleport
 			return false;
 		}
 
-		// expert-recommended: wrap vehicle creation in exception handling
+		// wrap vehicle creation in exception handling
 		Vehicle ent(0); // initialize with null handle
 		try
 		{
@@ -218,7 +218,7 @@ namespace YimMenu::Teleport
 			return false;
 		}
 
-		// expert-recommended: validate vehicle entity before accessing
+		// validate vehicle entity before accessing
 		if (!ent.IsValid())
 		{
 			LOG(WARNING) << "TeleportPlayerToCoords: Created vehicle is invalid - teleport failed";
@@ -233,7 +233,7 @@ namespace YimMenu::Teleport
 			return false;
 		}
 
-		// expert-recommended: validate vehicle entity before modifying properties
+		// validate vehicle entity before modifying properties
 		if (ent.IsValid())
 		{
 			ent.SetVisible(false);
@@ -248,7 +248,7 @@ namespace YimMenu::Teleport
 
 		auto vehId = ptr->m_NetObject->m_ObjectId;
 
-		// expert-recommended: validate player ped pointer before accessing m_NetObject (exact crash location)
+		// validate player ped pointer before accessing m_NetObject (exact crash location)
 		uint16_t playerId = 0;
 		try
 		{
@@ -281,13 +281,13 @@ namespace YimMenu::Teleport
 
 		g_SpoofingStorage.m_RemotePlayerTeleports.emplace(vehId, remoteTp);
 
-		// expert-recommended: validate player and handle before clearing tasks (spam-click protection)
+		// validate player and handle before clearing tasks (spam-click protection)
 		try
 		{
 			if (player.IsValid() && playerPed.IsValid())
 			{
 				int pedHandle = playerPed.GetHandle();
-				// expert-recommended: validate handle before using in natives
+				// validate handle before using in natives
 				if (pedHandle != 0 && ENTITY::DOES_ENTITY_EXIST(pedHandle) && PED::IS_PED_IN_ANY_VEHICLE(pedHandle, false))
 				{
 					TASK::CLEAR_PED_TASKS_IMMEDIATELY(pedHandle, true, true);
@@ -303,7 +303,7 @@ namespace YimMenu::Teleport
 		{
 			ScriptMgr::Yield(25ms);
 
-			// expert-recommended: validate player handle before accessing (spam-click protection)
+			// validate player handle before accessing (spam-click protection)
 			try
 			{
 				if (!player.IsValid())
@@ -312,7 +312,7 @@ namespace YimMenu::Teleport
 					break;
 				}
 
-				// expert-recommended: validate entities before using in natives
+				// validate entities before using in natives
 				if (!ent.IsValid())
 				{
 					LOG(WARNING) << "TeleportPlayerToCoords: Vehicle became invalid during teleport loop";
@@ -334,7 +334,7 @@ namespace YimMenu::Teleport
 			}
 		}
 
-		// expert-recommended: validate vehicle before cleanup operations
+		// validate vehicle before cleanup operations
 		if (ent.IsValid())
 		{
 			ent.ForceControl();

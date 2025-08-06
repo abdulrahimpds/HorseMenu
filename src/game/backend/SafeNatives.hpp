@@ -5,10 +5,10 @@
 
 namespace YimMenu::SafeNatives
 {
-	// expert-enhanced: safe wrapper for PED::SET_PED_CAN_RAGDOLL with intelligent crash protection
+	// safe wrapper for PED::SET_PED_CAN_RAGDOLL with intelligent crash protection
 	inline void SET_PED_CAN_RAGDOLL_SAFE(int ped, bool toggle)
 	{
-		// expert-enhanced: check if this handle matches crash signatures or attack patterns
+		// check if this handle matches crash signatures or attack patterns
 		if (CrashSignatures::IsKnownCrashHandle(ped))
 		{
 			LOG(WARNING) << "SET_PED_CAN_RAGDOLL: Blocked crash signature handle " << ped;

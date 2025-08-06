@@ -13,10 +13,10 @@
 
 namespace YimMenu::Hooks
 {
-	// expert-recommended: enhanced exception handling for Nemesis attack protection
+	// enhanced exception handling for Nemesis attack protection
 	static int SafeCallOriginal(void* mgr, CNetGamePlayer* src, CNetGamePlayer* dst, uint16_t objectType, uint16_t objectId, rage::datBitBuffer* buffer, int a7, int a8, void* a9)
 	{
-		// expert-recommended: additional validation before calling original
+		// additional validation before calling original
 		try
 		{
 			// validate buffer pointer range (Nemesis attack sends corrupted buffer pointers)
@@ -31,14 +31,14 @@ namespace YimMenu::Hooks
 					return 0;
 				}
 
-				// expert-recommended: validate buffer is in valid memory range
+				// validate buffer is in valid memory range
 				if (bufferAddr < 0x10000 || bufferAddr > 0x7FFFFFFFFFFF)
 				{
 					LOG(WARNING) << "HandleCloneSync: Blocked invalid buffer address: " << HEX(bufferAddr);
 					return 0;
 				}
 
-				// expert-recommended: check for common corruption patterns
+				// check for common corruption patterns
 				if ((bufferAddr & 0xFFFFFFFF) == 0x97 ||
 				    (bufferAddr & 0xFFFFFFFF) == 0x7 ||
 				    (bufferAddr & 0xFFFFFFFF) == 0xC08)
@@ -48,7 +48,7 @@ namespace YimMenu::Hooks
 				}
 			}
 
-			// expert-recommended: validate player pointers with intelligent pattern detection
+			// validate player pointers with intelligent pattern detection
 			if (src)
 			{
 				uintptr_t srcAddr = reinterpret_cast<uintptr_t>(src);
@@ -79,7 +79,7 @@ namespace YimMenu::Hooks
 	}
 	int Protections::HandleCloneSync(void* mgr, CNetGamePlayer* src, CNetGamePlayer* dst, uint16_t objectType, uint16_t objectId, rage::datBitBuffer* buffer, int a7, int a8, void* a9)
 	{
-		// expert-recommended: enhanced Nemesis attack protection (based on crash log analysis)
+		// enhanced Nemesis attack protection (based on crash log analysis)
 		// targeted crash protection - validate all pointers before use (based on .map analysis)
 		if (!mgr || !src || !dst || !buffer)
 		{
@@ -90,7 +90,7 @@ namespace YimMenu::Hooks
 			return 0;
 		}
 
-		// expert-recommended: enhanced crash signature checking with intelligent pattern detection
+		// enhanced crash signature checking with intelligent pattern detection
 		if (CrashSignatures::IsKnownCrashPointerEnhanced(mgr) ||
 		    CrashSignatures::IsKnownCrashPointerEnhanced(src) ||
 		    CrashSignatures::IsKnownCrashPointerEnhanced(dst) ||
@@ -99,7 +99,7 @@ namespace YimMenu::Hooks
 		{
 			LOG(WARNING) << "HandleCloneSync: Blocked crash signature or attack pattern (intelligent detection)";
 
-			// expert-recommended: add detection for the attacking player
+			// add detection for the attacking player
 			if (src && reinterpret_cast<uintptr_t>(src) > 0x10000)
 			{
 				try
@@ -115,7 +115,7 @@ namespace YimMenu::Hooks
 			return 0;
 		}
 
-		// expert-recommended: detect fuzzer attack patterns in clone sync data
+		// detect fuzzer attack patterns in clone sync data
 		// fuzzer attacks often embed invalid task combinations in clone sync
 		if (buffer && buffer->m_Data)
 		{
@@ -130,7 +130,7 @@ namespace YimMenu::Hooks
 			}
 		}
 
-		// expert-recommended: additional Nemesis attack pattern detection
+		// additional Nemesis attack pattern detection
 		uintptr_t bufferAddr = reinterpret_cast<uintptr_t>(buffer);
 		uintptr_t srcAddr = reinterpret_cast<uintptr_t>(src);
 		uintptr_t dstAddr = reinterpret_cast<uintptr_t>(dst);
@@ -155,7 +155,7 @@ namespace YimMenu::Hooks
 			return 0;
 		}
 
-		// expert-recommended: CASCADE CRASH PROTECTION (addresses friend crash → your crash scenario)
+		// CASCADE CRASH PROTECTION (addresses friend crash → your crash scenario)
 		// detect corrupted data from crash victims that can cause secondary crashes
 		if (src && srcAddr > 0x10000)
 		{
@@ -186,10 +186,10 @@ namespace YimMenu::Hooks
 			}
 		}
 
-		// expert-recommended: basic buffer validation (simplified due to type constraints)
+		// basic buffer validation (simplified due to type constraints)
 		// note: detailed buffer validation would require full rage::datBitBuffer definition
 
-		// expert-recommended: verify the game objects exist before manipulation
+		// verify the game objects exist before manipulation
 		// note: this is a simplified check - actual implementation may vary based on RDR2 internals
 		if (objectId > 0)
 		{
@@ -214,7 +214,7 @@ namespace YimMenu::Hooks
 			return 0;
 		}
 
-		// expert-recommended: wrap the critical section for maximum protection
+		// wrap the critical section for maximum protection
 		YimMenu::Protections::SetSyncingPlayer(src);
 
 		// call the exception-protected helper function

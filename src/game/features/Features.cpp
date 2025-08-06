@@ -18,7 +18,7 @@ namespace YimMenu
 {
 	void SpectateTick()
 	{
-		// expert-recommended: comprehensive spectate crash protection for hidden/invisible modders
+		// comprehensive spectate crash protection for hidden/invisible modders
 		if (g_SpectateId != Players::GetSelected().GetId() && g_Spectating)
 		{
 			// aggressive pre-validation: check for entity flooding attacks (handle 4 spam protection)
@@ -50,7 +50,7 @@ namespace YimMenu
 				return;
 			}
 
-			// expert-enhanced: validate ped pointer against crash signatures and attack patterns
+			// validate ped pointer against crash signatures and attack patterns
 			auto pedPtr = selectedPed.GetPointer<void*>();
 			if (CrashSignatures::IsKnownCrashPointerForEntities(pedPtr))
 			{
@@ -74,7 +74,7 @@ namespace YimMenu
 				return;
 			}
 
-			// expert-enhanced: validate handle against crash signatures and attack patterns
+			// validate handle against crash signatures and attack patterns
 			if (CrashSignatures::IsKnownCrashHandle(pedHandle))
 			{
 				LOG(WARNING) << "SpectateTick: Blocked crash signature handle - stopping spectate";
@@ -178,7 +178,7 @@ namespace YimMenu
 					return;
 				}
 
-				// expert-enhanced: validate entity is not corrupted before focus operations
+				// validate entity is not corrupted before focus operations
 				if (CrashSignatures::IsKnownCrashHandle(playerPed))
 				{
 					LOG(WARNING) << "SpectateTick: Detected crash signature entity during spectate - stopping";

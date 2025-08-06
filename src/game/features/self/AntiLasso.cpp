@@ -12,7 +12,7 @@ namespace YimMenu::Features
 
 		virtual void OnTick() override
 		{
-			// expert-recommended: validate self ped before use (exact crash location from .map analysis)
+			// validate self ped before use (exact crash location from .map analysis)
 			auto selfPed = Self::GetPed();
 			if (!selfPed.IsValid())
 			{
@@ -20,7 +20,7 @@ namespace YimMenu::Features
 				return;
 			}
 
-			// expert-enhanced: validate ped pointer against crash signatures and attack patterns
+			// validate ped pointer against crash signatures and attack patterns
 			auto pedPtr = selfPed.GetPointer<void*>();
 			if (CrashSignatures::IsKnownCrashPointerForEntities(pedPtr))
 			{
@@ -28,7 +28,7 @@ namespace YimMenu::Features
 				return;
 			}
 
-			// expert-recommended: get handle once and validate
+			// get handle once and validate
 			int pedHandle = 0;
 			try
 			{
@@ -40,14 +40,14 @@ namespace YimMenu::Features
 				return;
 			}
 
-			// expert-recommended: validate handle before use
+			// validate handle before use
 			if (pedHandle == 0 || !ENTITY::DOES_ENTITY_EXIST(pedHandle))
 			{
 				LOG(WARNING) << "AntiLasso: Invalid ped handle " << pedHandle << " - skipping lasso protection";
 				return;
 			}
 
-			// expert-recommended: wrap native calls in exception handling
+			// wrap native calls in exception handling
 			try
 			{
 				PED::SET_PED_LASSO_HOGTIE_FLAG(pedHandle, (int)LassoFlags::LHF_CAN_BE_LASSOED, false);
@@ -63,7 +63,7 @@ namespace YimMenu::Features
 
 		virtual void OnDisable() override
 		{
-			// expert-recommended: same protection for OnDisable
+			// same protection for OnDisable
 			auto selfPed = Self::GetPed();
 			if (!selfPed.IsValid())
 			{

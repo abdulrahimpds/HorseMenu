@@ -5,6 +5,8 @@
 #include <tuple>
 #include <mutex>
 #include <map>
+#include <unordered_map>
+#include <chrono>
 #include "common.hpp"
 
 namespace YimMenu::CrashSignatures
@@ -120,7 +122,7 @@ namespace YimMenu::CrashSignatures
 		0x1A02C850328, // from Nemesis attack - attempted to read from 0x1A02C850328 (corrupted pointer) in HandleCloneSync
 		0x1A02C7DFCD8, // from Nemesis attack - attempted to read from 0x1A02C7DFCD8 (corrupted pointer) in HandleCloneSync
 
-		// common spectate crash signatures (expert-recommended patterns for hidden/invisible modders)
+		// common spectate crash signatures (patterns for hidden/invisible modders)
 		0xFFFFFFFF,    // invalid entity handle - common in spectate crashes
 		0xDEADBEEF,    // corrupted entity pointer - common debug pattern used by modders
 		0xCCCCCCCC,    // uninitialized memory pattern - common in entity corruption
@@ -185,7 +187,7 @@ namespace YimMenu::CrashSignatures
 
 	inline bool IsHighAddressCorruption(uintptr_t address)
 	{
-		// expert-recommended: more precise high-address corruption detection
+		// more precise high-address corruption detection
 		// based on Windows x64 memory layout research (user space limit: 0x7FFFFFFFFFFF)
 
 		// detect specific attack patterns in heap corruption range (like 0x1A0... series from crash logs)
@@ -208,7 +210,7 @@ namespace YimMenu::CrashSignatures
 			}
 		}
 
-		// expert-recommended: detect addresses above Windows x64 user space limit
+		// detect addresses above Windows x64 user space limit
 		// Windows x64 user space: 0x0000000000000000 to 0x00007FFFFFFFFFFF (128TB)
 		if (address > 0x00007FFFFFFFFFFF)
 		{
@@ -225,7 +227,7 @@ namespace YimMenu::CrashSignatures
 
 	inline bool IsLowAddressOffset(uintptr_t address)
 	{
-		// expert-recommended: detect low-address offsets (null pointer + small offset attacks)
+		// detect low-address offsets (null pointer + small offset attacks)
 		// based on AddressSanitizer and security research best practices
 
 		if (address > 0 && address < 0x10000) // first 64KB - standard protection range
@@ -252,7 +254,7 @@ namespace YimMenu::CrashSignatures
 		return false;
 	}
 
-	// expert-recommended: additional validation functions for comprehensive protection
+	// additional validation functions for comprehensive protection
 	inline bool IsValidPointerAlignment(uintptr_t address)
 	{
 		// expert recommendation: most valid pointers on x64 are 8-byte aligned
@@ -306,7 +308,7 @@ namespace YimMenu::CrashSignatures
 		}
 
 		// pattern 1: sequential attack detection (like final-cout.log crashes)
-		// expert-recommended: limit search to prevent performance impact
+		// limit search to prevent performance impact
 		for (const auto& signature : KnownCrashAddresses)
 		{
 			uintptr_t diff = (address > signature) ? (address - signature) : (signature - address);
@@ -349,7 +351,7 @@ namespace YimMenu::CrashSignatures
 		return false;
 	}
 
-	// expert-recommended: performance-optimized enhanced crash pointer detection
+	// performance-optimized enhanced crash pointer detection
 	inline bool IsKnownCrashPointerEnhanced(void* ptr)
 	{
 		// expert recommendation: fast path for null pointers
@@ -385,7 +387,7 @@ namespace YimMenu::CrashSignatures
 		return false;
 	}
 
-	// expert-recommended: context-aware validation for specific use cases
+	// context-aware validation for specific use cases
 	inline bool IsKnownCrashPointerForNetworking(void* ptr)
 	{
 		// specialized validation for network-related pointers (more strict)
@@ -403,7 +405,7 @@ namespace YimMenu::CrashSignatures
 		return IsKnownCrashPointerEnhanced(ptr);
 	}
 
-	// expert-recommended: validation for entity/game object pointers
+	// validation for entity/game object pointers
 	inline bool IsKnownCrashPointerForEntities(void* ptr)
 	{
 		// specialized validation for game entity pointers
@@ -421,17 +423,21 @@ namespace YimMenu::CrashSignatures
 		return IsKnownCrashPointerEnhanced(ptr);
 	}
 
-	// LEARNING MODE: shared data storage for all 4 parameters
-	static std::set<std::tuple<int, int, int, int>> g_SeenTasks;
-	static std::mutex g_TaskLogMutex;
+	// Triple-based fuzzer protection using semantic fields only
+	// The vector 'validTasks' is your existing list of {treeIndex, taskIndex, taskType, taskTreeType}
+	static std::unordered_set<std::uint64_t> g_ValidTaskTriples;
+	static std::once_flag g_TripleInitFlag;
+	static std::set<std::tuple<int, int, int, int>> g_SeenTasks; // Your collected 1,435 4-tuples
+
+	// Fix pre-population bug by moving static to file scope
 	static bool g_TasksPrePopulated = false;
 
-	// Pre-populate with existing task combinations from previous session
+	// LEARNING MODE: Pre-populate with existing task combinations
 	inline void PrePopulateExistingTasks()
 	{
 		if (g_TasksPrePopulated) return;
 
-		// Pre-populate with existing task combinations (535 unique combinations from previous session)
+		// Your collected dataset: 1,435 valid task combinations from clean sessions
 		static const std::vector<std::tuple<int,int,int,int>> validTasks = {
 			{0, 0, 32, 0}, {0, 0, 150, 0}, {0, 0, 150, 1}, {0, 0, 150, 5}, {0, 0, 152, 0},
 			{0, 0, 154, 1}, {0, 0, 154, 5}, {0, 0, 154, 6}, {0, 0, 168, 0}, {0, 0, 168, 1},
@@ -744,84 +750,73 @@ namespace YimMenu::CrashSignatures
 		}
 
 		g_TasksPrePopulated = true;
-		LOG(INFO) << "Pre-populated " << (validTasks.size()) << " existing task combinations from previous sessions";
+		LOG(INFO) << "Pre-populated " << validTasks.size() << " existing 4-tuple task combinations";
 	}
 
-	// TEMPORARY LEARNING MODE: log all task data to discover legitimate ranges
-	// cybersecurity expert-recommended: collect real game data before implementing whitelist
+	// Build a set of valid triples at startup
+	inline void InitializeTaskTripleWhitelist() {
+		std::call_once(g_TripleInitFlag, [] {
+			// First ensure we have the base data
+			PrePopulateExistingTasks();
+
+			// Convert 4-tuples to 3-tuples (removing unstable taskIndex)
+			// "When I deduplicated your 1,435 quadruples on these three fields there were 1,078 unique triples"
+			for (const auto& task : g_SeenTasks) {
+				int treeIdx = std::get<0>(task);      // treeIndex
+				// int taskIdx = std::get<1>(task);   // taskIndex - ignore unstable array position
+				int taskType = std::get<2>(task);     // taskType
+				int taskTreeType = std::get<3>(task); // taskTreeType
+
+				std::uint64_t key = (static_cast<std::uint64_t>(treeIdx)  << 32) |
+				                    (static_cast<std::uint64_t>(taskType)  << 16) |
+				                     static_cast<std::uint64_t>(taskTreeType);
+				g_ValidTaskTriples.insert(key);
+			}
+
+			LOG(INFO) << "Initialized task triple whitelist with " << g_ValidTaskTriples.size()
+			          << " unique (treeIndex, taskType, taskTreeType) combinations from " << g_SeenTasks.size() << " original 4-tuples";
+		});
+	}
+
+	// Fast triple validation using semantic fields only
+	inline bool IsValidTaskTriple(int treeIdx, int taskType, int taskTreeType) {
+		InitializeTaskTripleWhitelist();
+		std::uint64_t key = (static_cast<std::uint64_t>(treeIdx)  << 32) |
+		                    (static_cast<std::uint64_t>(taskType)  << 16) |
+		                     static_cast<std::uint64_t>(taskTreeType);
+		return g_ValidTaskTriples.find(key) != g_ValidTaskTriples.end();
+	}
+
+	// Rate limiting for fuzzer attack logging
+	static std::unordered_map<std::string, std::chrono::steady_clock::time_point> g_LastFuzzerLogTime;
+	static std::unordered_map<std::string, int> g_FuzzerAttackCount;
+	static std::mutex g_FuzzerLogMutex;
+
+	// "log once, and possibly block the player"
+	inline void LogFuzzerAttackOnce(const std::string& playerName, const std::string& attackDetails)
+	{
+		std::lock_guard<std::mutex> lock(g_FuzzerLogMutex);
+
+		// Only log once per player to prevent spam from loop attacks
+		std::string playerKey = "fuzzer_" + playerName;
+		if (g_LastFuzzerLogTime.find(playerKey) == g_LastFuzzerLogTime.end())
+		{
+			LOG(WARNING) << "FUZZER ATTACK detected from " << playerName << " - " << attackDetails;
+			g_LastFuzzerLogTime[playerKey] = std::chrono::steady_clock::now();
+		}
+
+		// Count attacks for analysis but don't spam logs
+		g_FuzzerAttackCount[playerKey]++;
+	}
+
+	// REMOVED LEARNING MODE - Pure production whitelist validation
+	// "you retain the usefulness of your 3‑day dataset while eliminating the brittleness"
 	inline bool IsValidTaskTreeData(int treeIndex, int taskIndex, int taskType, int taskTreeType)
 	{
-		// Initialize with existing data on first call
-		PrePopulateExistingTasks();
-
-		// LEARNING MODE: log every single task combination we see (all 4 parameters)
-		std::lock_guard<std::mutex> lock(g_TaskLogMutex);
-
-		// Create tuple for this combination (all 4 parameters)
-		auto taskTuple = std::make_tuple(treeIndex, taskIndex, taskType, taskTreeType);
-
-		// Only log new combinations to avoid spam
-		if (g_SeenTasks.find(taskTuple) == g_SeenTasks.end())
-		{
-			g_SeenTasks.insert(taskTuple);
-			LOG(INFO) << "LEARNING: Valid task data - treeIndex=" << treeIndex
-			          << ", taskIndex=" << taskIndex
-			          << ", taskType=" << taskType
-			          << ", taskTreeType=" << taskTreeType;
-		}
-
-		// PURE SESSION LEARNING: allow EVERYTHING through since we're in a clean session
-		// No blocking at all - we want to capture all legitimate game values
-		return true; // LEARNING MODE: allow absolutely everything for complete data collection
+		// Use only semantic fields, ignore unstable array positions
+		return IsValidTaskTriple(treeIndex, taskType, taskTreeType);
 	}
 
-	// LEARNING MODE: function to dump all collected task data (4 parameters)
-	inline void DumpCollectedTaskData()
-	{
-		std::lock_guard<std::mutex> lock(g_TaskLogMutex);
-
-		LOG(INFO) << "=== LEARNING MODE: Collected Task Data Summary ===";
-		LOG(INFO) << "Total unique task combinations seen: " << g_SeenTasks.size();
-
-		// Group by treeIndex for analysis
-		std::map<int, std::set<int>> taskIndexesByTree;
-		std::map<int, std::set<int>> taskTypesByTree;
-		std::map<int, std::set<int>> taskTreeTypesByTree;
-
-		for (const auto& [treeIndex, taskIndex, taskType, taskTreeType] : g_SeenTasks)
-		{
-			taskIndexesByTree[treeIndex].insert(taskIndex);
-			taskTypesByTree[treeIndex].insert(taskType);
-			taskTreeTypesByTree[treeIndex].insert(taskTreeType);
-		}
-
-		// Print summary by tree
-		for (int tree = 0; tree <= 4; tree++)
-		{
-			if (taskTypesByTree.find(tree) != taskTypesByTree.end())
-			{
-				auto& taskIndexes = taskIndexesByTree[tree];
-				auto& taskTypes = taskTypesByTree[tree];
-				auto& taskTreeTypes = taskTreeTypesByTree[tree];
-
-				int minTaskIndex = *taskIndexes.begin();
-				int maxTaskIndex = *taskIndexes.rbegin();
-				int minTaskType = *taskTypes.begin();
-				int maxTaskType = *taskTypes.rbegin();
-
-				LOG(INFO) << "Tree " << tree << ": taskIndex range [" << minTaskIndex << "-" << maxTaskIndex << "]";
-				LOG(INFO) << "Tree " << tree << ": taskType range [" << minTaskType << "-" << maxTaskType << "]";
-
-				std::string taskTreeTypeList;
-				for (int ttt : taskTreeTypes)
-				{
-					if (!taskTreeTypeList.empty()) taskTreeTypeList += ", ";
-					taskTreeTypeList += std::to_string(ttt);
-				}
-				LOG(INFO) << "Tree " << tree << ": taskTreeTypes seen: " << taskTreeTypeList;
-			}
-		}
-
-		LOG(INFO) << "=== End Learning Mode Summary ===";
-	}
+	// REMOVED LEARNING MODE - "you retain the usefulness of your 3‑day dataset"
+	// The learning phase is complete. Pure production whitelist validation only.
 }
