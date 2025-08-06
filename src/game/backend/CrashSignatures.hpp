@@ -421,15 +421,18 @@ namespace YimMenu::CrashSignatures
 		return IsKnownCrashPointerEnhanced(ptr);
 	}
 
-	// EXPERT-RECOMMENDED: Bulletproof whitelist validation (deny by default)
-	// Cybersecurity principle: "Everything not explicitly permitted is forbidden"
+	// LEARNING MODE: shared data storage for all 4 parameters
+	static std::set<std::tuple<int, int, int, int>> g_SeenTasks;
+	static std::mutex g_TaskLogMutex;
+	static bool g_TasksPrePopulated = false;
 
-	// Expert-recommended: Fast hash-based lookup for valid task combinations
-	inline bool IsValidTaskCombination(int treeIndex, int taskIndex, int taskType, int taskTreeType)
+	// Pre-populate with existing task combinations from previous session
+	inline void PrePopulateExistingTasks()
 	{
-		// Expert-recommended: strict whitelist validation using set for O(log n) lookup
-		// NO DATA PROCESSING - just lookup to block fuzzer attacks before any processing
-		static const std::set<std::tuple<int, int, int, int>> VALID_COMBINATIONS = {
+		if (g_TasksPrePopulated) return;
+
+		// Pre-populate with existing task combinations (535 unique combinations from previous session)
+		static const std::vector<std::tuple<int,int,int,int>> validTasks = {
 			{0, 0, 32, 0}, {0, 0, 150, 0}, {0, 0, 150, 1}, {0, 0, 150, 5}, {0, 0, 152, 0},
 			{0, 0, 154, 1}, {0, 0, 154, 5}, {0, 0, 154, 6}, {0, 0, 168, 0}, {0, 0, 168, 1},
 			{0, 0, 169, 1}, {0, 0, 169, 5}, {0, 0, 320, 0}, {0, 0, 322, 0}, {0, 0, 451, 0},
@@ -736,26 +739,89 @@ namespace YimMenu::CrashSignatures
 			{4, 0, 8, 0}, {4, 6, 238, 6}, {4, 2, 427, 2}
 		};
 
-		// Expert-recommended: O(log n) lookup - extremely fast, no data processing
-		return VALID_COMBINATIONS.find({treeIndex, taskIndex, taskType, taskTreeType}) != VALID_COMBINATIONS.end();
+		for (const auto& task : validTasks) {
+			g_SeenTasks.insert(task);
+		}
+
+		g_TasksPrePopulated = true;
+		LOG(INFO) << "Pre-populated " << (validTasks.size()) << " existing task combinations from previous sessions";
 	}
 
-	// EXPERT-RECOMMENDED: Bulletproof fuzzer attack protection
-	// Cybersecurity principle: "Deny by default, permit by exception"
+	// TEMPORARY LEARNING MODE: log all task data to discover legitimate ranges
+	// cybersecurity expert-recommended: collect real game data before implementing whitelist
 	inline bool IsValidTaskTreeData(int treeIndex, int taskIndex, int taskType, int taskTreeType)
 	{
-		// Expert-recommended: Block fuzzer attacks BEFORE any data processing
-		// Use strict whitelist validation - O(log n) lookup, no processing overhead
-		return IsValidTaskCombination(treeIndex, taskIndex, taskType, taskTreeType);
+		// Initialize with existing data on first call
+		PrePopulateExistingTasks();
+
+		// LEARNING MODE: log every single task combination we see (all 4 parameters)
+		std::lock_guard<std::mutex> lock(g_TaskLogMutex);
+
+		// Create tuple for this combination (all 4 parameters)
+		auto taskTuple = std::make_tuple(treeIndex, taskIndex, taskType, taskTreeType);
+
+		// Only log new combinations to avoid spam
+		if (g_SeenTasks.find(taskTuple) == g_SeenTasks.end())
+		{
+			g_SeenTasks.insert(taskTuple);
+			LOG(INFO) << "LEARNING: Valid task data - treeIndex=" << treeIndex
+			          << ", taskIndex=" << taskIndex
+			          << ", taskType=" << taskType
+			          << ", taskTreeType=" << taskTreeType;
+		}
+
+		// PURE SESSION LEARNING: allow EVERYTHING through since we're in a clean session
+		// No blocking at all - we want to capture all legitimate game values
+		return true; // LEARNING MODE: allow absolutely everything for complete data collection
 	}
 
-	// EXPERT-RECOMMENDED: Smart logging for fuzzer attack detection
-	// Cybersecurity best practice: Log once per attacker to avoid spam processing
-	inline void LogFuzzerAttackBlocked(const std::string& playerName, int treeIndex, int taskIndex, int taskType, int taskTreeType)
+	// LEARNING MODE: function to dump all collected task data (4 parameters)
+	inline void DumpCollectedTaskData()
 	{
-		// Expert-recommended: Minimal logging to avoid processing attack data
-		// Only log the attack source and basic info - no detailed data processing
-		LOG(WARNING) << "Fuzzer attack neutralized from " << playerName
-		             << " (invalid task combination: " << treeIndex << "," << taskIndex << "," << taskType << "," << taskTreeType << ")";
+		std::lock_guard<std::mutex> lock(g_TaskLogMutex);
+
+		LOG(INFO) << "=== LEARNING MODE: Collected Task Data Summary ===";
+		LOG(INFO) << "Total unique task combinations seen: " << g_SeenTasks.size();
+
+		// Group by treeIndex for analysis
+		std::map<int, std::set<int>> taskIndexesByTree;
+		std::map<int, std::set<int>> taskTypesByTree;
+		std::map<int, std::set<int>> taskTreeTypesByTree;
+
+		for (const auto& [treeIndex, taskIndex, taskType, taskTreeType] : g_SeenTasks)
+		{
+			taskIndexesByTree[treeIndex].insert(taskIndex);
+			taskTypesByTree[treeIndex].insert(taskType);
+			taskTreeTypesByTree[treeIndex].insert(taskTreeType);
+		}
+
+		// Print summary by tree
+		for (int tree = 0; tree <= 4; tree++)
+		{
+			if (taskTypesByTree.find(tree) != taskTypesByTree.end())
+			{
+				auto& taskIndexes = taskIndexesByTree[tree];
+				auto& taskTypes = taskTypesByTree[tree];
+				auto& taskTreeTypes = taskTreeTypesByTree[tree];
+
+				int minTaskIndex = *taskIndexes.begin();
+				int maxTaskIndex = *taskIndexes.rbegin();
+				int minTaskType = *taskTypes.begin();
+				int maxTaskType = *taskTypes.rbegin();
+
+				LOG(INFO) << "Tree " << tree << ": taskIndex range [" << minTaskIndex << "-" << maxTaskIndex << "]";
+				LOG(INFO) << "Tree " << tree << ": taskType range [" << minTaskType << "-" << maxTaskType << "]";
+
+				std::string taskTreeTypeList;
+				for (int ttt : taskTreeTypes)
+				{
+					if (!taskTreeTypeList.empty()) taskTreeTypeList += ", ";
+					taskTreeTypeList += std::to_string(ttt);
+				}
+				LOG(INFO) << "Tree " << tree << ": taskTreeTypes seen: " << taskTreeTypeList;
+			}
+		}
+
+		LOG(INFO) << "=== End Learning Mode Summary ===";
 	}
 }

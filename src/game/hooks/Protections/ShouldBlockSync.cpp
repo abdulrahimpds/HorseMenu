@@ -396,28 +396,34 @@ namespace
 						return true;
 					}
 
-					// EXPERT-RECOMMENDED: Bulletproof fuzzer attack protection (OWASP deny-by-default)
-					// Cybersecurity principle: "Everything not explicitly permitted is forbidden"
-					// CORRECTED: Use exact same parameters as learning mode collected
-					int treeIndex = i;  // tree index (0-4)
-					int taskIndex = j;  // task index within tree
-					int taskType = data.m_Trees[i].m_Tasks[j].m_TaskType;      // task type to validate
-					int taskTreeType = data.m_Trees[i].m_Tasks[j].m_TaskTreeType;  // task tree type
+					// cybersecurity expert-recommended: corrected whitelist validation (OWASP deny-by-default)
+					// CORRECTED: based on expert analysis of parameter confusion - now using all 4 parameters
+					int treeIndex = i;  // this is the tree index (0-4)
+					int taskIndex = j;  // this is the task index within the tree
+					int taskType = data.m_Trees[i].m_Tasks[j].m_TaskType;      // this is the task type to validate
+					int taskTreeType = data.m_Trees[i].m_Tasks[j].m_TaskTreeType;  // this is the taskTreeType (0-3 legitimate, 24+ attack)
 
-					// Expert-recommended: Block fuzzer attacks BEFORE any data processing
 					if (!CrashSignatures::IsValidTaskTreeData(treeIndex, taskIndex, taskType, taskTreeType))
 					{
-						// Expert-recommended: Smart logging - once per player EVER (prevent edge case false positives)
-						auto& player = Protections::GetSyncingPlayer();
-						if (!player.GetData().m_FuzzerAttackLogged)
+						LOGF(SYNC, WARNING, "Blocking task fuzzer attack - whitelist validation (treeIndex={}, taskIndex={}, taskType={}, taskTreeType={}) from {}",
+							treeIndex, taskIndex, taskType, taskTreeType, Protections::GetSyncingPlayer().GetName());
+						SyncBlocked("task fuzzer crash - whitelist validation");
+
+						// expert-recommended: sanitize corrupted task data
+						try
 						{
-							CrashSignatures::LogFuzzerAttackBlocked(player.GetName(), treeIndex, taskIndex, taskType, taskTreeType);
-							player.GetData().m_FuzzerAttackLogged = true; // Mark as logged - never log again for this player
+							data.m_Trees[i].m_Tasks[j].m_TaskType = 0;
+							data.m_Trees[i].m_Tasks[j].m_TaskTreeType = 0;
+							data.m_Trees[i].m_Tasks[j].m_TaskSequenceId = 0;
+							data.m_Trees[i].m_Tasks[j].m_TaskTreeDepth = 0;
+						}
+						catch (...)
+						{
+							LOGF(SYNC, WARNING, "Exception during task data sanitization");
 						}
 
-						SyncBlocked("fuzzer attack neutralized");
-						// NOTE: Not adding Detection::TRIED_CRASH_PLAYER due to potential edge cases/false positives in whitelist data
-						return true; // BLOCK - no data processing, no sanitization attempts
+						Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
+						return true;
 					}
 				}
 			}

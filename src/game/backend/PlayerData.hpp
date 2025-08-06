@@ -20,7 +20,6 @@ namespace YimMenu
 		RateLimiter m_VehicleFloodLimit{10s, 10};
 		RateLimiter m_LargeVehicleFloodLimit{15s, 5};
 		RateLimiter m_TickerMessageRateLimit{5s, 3};
-		bool m_FuzzerAttackLogged{false}; // expert-recommended: log fuzzer attacks once per player EVER
 
 		std::optional<std::uint64_t> m_PeerIdToSpoofTo{};
 	};

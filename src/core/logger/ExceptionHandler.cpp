@@ -52,19 +52,6 @@ namespace YimMenu
 				return EXCEPTION_EXECUTE_HANDLER; // force recovery for known crashes and attack patterns
 			}
 
-			// expert-recommended: detect fuzzer attack patterns in crash addresses
-			// fuzzer attacks often cause crashes at predictable address patterns
-			if ((violation_address & 0xFFFFFFFF) == 0x97 ||   // Nemesis fuzzer pattern
-			    (violation_address & 0xFFFFFFFF) == 0x7 ||    // Nemesis fuzzer pattern
-			    (violation_address & 0xFFFFFFFF) == 0xC08 ||  // BringPlayer fuzzer pattern
-			    (violation_address & 0xFFFFFFFF) == 0x46)     // AntiLasso fuzzer pattern
-			{
-				static std::atomic<int> fuzzer_crash_count = 0;
-				LOG(WARNING) << "Blocked fuzzer attack crash pattern at address " << HEX(violation_address)
-				            << " (fuzzer detection - attempt #" << ++fuzzer_crash_count << ")";
-				return EXCEPTION_EXECUTE_HANDLER; // force recovery for fuzzer attacks
-			}
-
 			// detect additional memory corruption patterns not in database
 			if (violation_address < 0x1000 ||
 			    (violation_address & 0xFFFF000000000000) == 0x7FF7000000000000 ||
