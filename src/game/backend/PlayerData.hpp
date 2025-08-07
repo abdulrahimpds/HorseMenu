@@ -21,11 +21,13 @@ namespace YimMenu
 		RateLimiter m_LargeVehicleFloodLimit{15s, 5};
 		RateLimiter m_TickerMessageRateLimit{5s, 3};
 
-		// Connection-level fuzzer attack protection
+		// COMMENTED OUT: Connection-level fuzzer attack protection (doesn't help - still get crashed)
+		/*
 		int m_FuzzerAttackCount{0};                                    // Total attacks from this player
 		bool m_ConnectionBlocked{false};                               // Is connection currently blocked?
 		std::chrono::steady_clock::time_point m_BlockedUntil{};       // When to unblock the connection
 		RateLimiter m_FuzzerAttackRateLimit{60s, 20};                 // 20 attacks per minute rate limit
+		*/
 
 		std::optional<std::uint64_t> m_PeerIdToSpoofTo{};
 	};

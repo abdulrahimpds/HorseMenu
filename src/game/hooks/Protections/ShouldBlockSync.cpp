@@ -207,6 +207,7 @@ namespace
 
 	// Connection-level blocking for spam attackers
 	// "keep a per‑player attack counter and temporarily block all incoming sync packets"
+	/*
 	inline bool ShouldBlockPlayerConnection(YimMenu::Player& player, bool isAttack = false)
 	{
 		if (!player.IsValid())
@@ -267,6 +268,7 @@ namespace
 
 		return false;
 	}
+	*/
 
 	inline void DeleteSyncObjectLater(std::uint16_t object)
 	{
@@ -511,6 +513,8 @@ namespace
 							i, taskType, taskTreeType);
 						CrashSignatures::LogFuzzerAttackOnce(Protections::GetSyncingPlayer().GetName(), attackDetails);
 
+						// COMMENTED OUT: Connection blocking logic doesn't help - still get crashed
+						/*
 						// Increment fuzzer attack counter and trigger connection-level blocking
 						auto player = Protections::GetSyncingPlayer();
 						if (player.IsValid())
@@ -524,6 +528,7 @@ namespace
 							LOGF(SYNC, WARNING, "Fuzzer attack #{} from {} - invalid task triple (tree={}, taskType={}, taskTreeType={})",
 								playerData.m_FuzzerAttackCount, player.GetName(), i, taskType, taskTreeType);
 						}
+						*/
 
 						SyncBlocked("task fuzzer attack - triple validation");
 						// player.AddDetection(Detection::TRIED_CRASH_PLAYER); we dont want to flag them as modders as it contains failsafes
@@ -747,7 +752,8 @@ namespace YimMenu::Hooks::Protections
 	{
 		Nodes::Init();
 
-		// Connection-level blocking for spam attackers
+		// COMMENTED OUT: Connection-level blocking for spam attackers doesn't help - still get crashed
+		/*
 		// "At the start of processing a data node... call ShouldBlockPlayerConnection()"
 		// "If it returns true, simply return true... so the sync packet is dropped without further processing"
 		auto syncingPlayer = ::YimMenu::Protections::GetSyncingPlayer();
@@ -756,6 +762,7 @@ namespace YimMenu::Hooks::Protections
 			// Connection blocked - drop packet silently without any processing to prevent resource drain
 			return true;
 		}
+		*/
 
 		if (g_Running && SyncNodeVisitor(reinterpret_cast<CProjectBaseSyncDataNode*>(tree->m_NextSyncNode), type, object))
 		{
