@@ -15,44 +15,72 @@
 
 #include <map>
 
+// shared animation ui state
+namespace {
+	std::string g_animDict;
+	std::string g_animName;
+	bool g_loopAnimation = false;
+}
 
 namespace YimMenu::Features
 {
 	BoolCommand _RecoveryEnabled("recoveryenabled", "Recovery Enabled", "Is the recovery feature enabled");
+
+	// command to play the current animation from the ui state
+	class PlayAnimationCommand : public Command
+	{
+		using Command::Command;
+		virtual void OnCall() override
+		{
+			FiberPool::Push([] {
+				if (g_animDict.empty() || g_animName.empty())
+					return;
+				// validate ped before issuing task
+				auto ped = Self::GetPed();
+				if (!ped.IsValid())
+					return;
+				for (int i = 0; i < 250; i++)
+				{
+					if (STREAMING::HAS_ANIM_DICT_LOADED(g_animDict.c_str()))
+						break;
+					STREAMING::REQUEST_ANIM_DICT(g_animDict.c_str());
+					ScriptMgr::Yield();
+				}
+				int animFlags = g_loopAnimation ? 1 : 0;
+				TASK::TASK_PLAY_ANIM(ped.GetHandle(), g_animDict.c_str(), g_animName.c_str(), 8.0f, -8.0f, -1, animFlags, 0, false, false, false, "", 0);
+			});
+		}
+	};
+
+	class StopAnimationCommand : public Command
+	{
+		using Command::Command;
+		virtual void OnCall() override
+		{
+			FiberPool::Push([] {
+				auto ped = Self::GetPed();
+				if (ped.IsValid())
+					TASK::CLEAR_PED_TASKS(ped.GetHandle(), true, false);
+			});
+		}
+	};
+
+	static PlayAnimationCommand _PlayAnimation{"playanim", "Play Animation", "Play the current animation"};
+	static StopAnimationCommand _StopAnimation{"stopanim", "Stop Animation", "Stop current animation"};
 }
 
 namespace YimMenu::Submenus
 {
 	void RenderAnimationsCategory()
 	{
-		static std::string anim, dict;
-		static bool loopAnimation = false;
+		// bind inputs to shared state used by commands
+		InputTextWithHint("Dictionary", "Enter Dictionary Name", &g_animDict).Draw();
+		InputTextWithHint("Animation", "Enter Animation Name", &g_animName).Draw();
 
-		InputTextWithHint("Dictionary", "Enter Dictionary Name", &dict).Draw();
-		InputTextWithHint("Animation", "Enter Animation Name", &anim).Draw();
-
-		ImGui::Checkbox("Loop", &loopAnimation);
+		ImGui::Checkbox("Loop", &g_loopAnimation);
 		ImGui::SameLine();
-		if (ImGui::Button("Play Animation"))
-		{
-			FiberPool::Push([=] {
-				for (int i = 0; i < 250; i++)
-				{
-					if (dict.empty() || anim.empty())
-						break;
-
-					if (STREAMING::HAS_ANIM_DICT_LOADED(dict.c_str()))
-						break;
-
-					STREAMING::REQUEST_ANIM_DICT(dict.c_str());
-					ScriptMgr::Yield();
-				}
-
-				// use loop flag to determine animation flags
-				int animFlags = loopAnimation ? 1 : 0; // 1 = loop, 0 = play once
-				TASK::TASK_PLAY_ANIM(YimMenu::Self::GetPed().GetHandle(), dict.c_str(), anim.c_str(), 8.0f, -8.0f, -1, animFlags, 0, false, false, false, "", 0);
-			});
-		}
+		// draw as CommandItem so it supports Shift hotkeys
+		CommandItem("playanim"_J, "Play Animation").Draw();
 
 		ImGui::Separator();
 
@@ -119,12 +147,7 @@ namespace YimMenu::Submenus
 			}
 		}
 
-		if (ImGui::Button("Stop Animation"))
-		{
-			FiberPool::Push([=] {
-				TASK::CLEAR_PED_TASKS(YimMenu::Self::GetPed().GetHandle(), true, false);
-			});
-		}
+		CommandItem("stopanim"_J, "Stop Animation").Draw();
 	}
 
 	Self::Self() :
