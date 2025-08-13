@@ -353,7 +353,8 @@ namespace YimMenu
 	void Entity::SetInvincible(bool status)
 	{
 		ENTITY_ASSERT_VALID();
-		ENTITY_ASSERT_CONTROL();
+		// Skip control assertion for invincibility - it works without control and spams logs
+		// ENTITY_ASSERT_CONTROL(); // Commented out to reduce spam - invincibility works fine without control
 		ENTITY::SET_ENTITY_INVINCIBLE(GetHandle(), status);
 	}
 

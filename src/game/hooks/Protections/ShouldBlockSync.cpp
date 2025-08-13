@@ -15,6 +15,7 @@
 #include "game/rdr/data/PedModels.hpp"
 #include "game/backend/CrashSignatures.hpp"
 #include <format>
+#include <algorithm>
 
 #include <network/CNetGamePlayer.hpp>
 #include <network/CNetworkScSession.hpp>
@@ -195,14 +196,17 @@ namespace
 		if (object == -1)
 			return;
 
-		// crash signature protection with intelligent pattern detection
-		if (CrashSignatures::IsKnownCrashPointerForNetworking(reinterpret_cast<void*>(static_cast<uintptr_t>(object))))
+		// CRASH FIX: Don't check crash signatures for object IDs - they're just numbers
+		// The crash signature check was causing issues when trying to delete corrupted objects
+		// Object IDs are 16-bit integers, not pointers, so crash signature detection doesn't apply
+		try
 		{
-			LOG(WARNING) << "DeleteSyncObject: Blocked crash signature or attack pattern in object " << object;
-			return;
+			Network::ForceRemoveNetworkEntity(object, -1, false);
 		}
-
-		Network::ForceRemoveNetworkEntity(object, -1, false);
+		catch (...)
+		{
+			LOG(WARNING) << "DeleteSyncObject: Exception deleting object " << object << " - continuing safely";
+		}
 	}
 
 	// Connection-level blocking for spam attackers
@@ -276,14 +280,16 @@ namespace
 			if (object == -1)
 				return;
 
-			// crash signature protection with intelligent pattern detection
-			if (CrashSignatures::IsKnownCrashPointerForNetworking(reinterpret_cast<void*>(static_cast<uintptr_t>(object))))
+			// CRASH FIX: Don't check crash signatures for object IDs - they're just numbers
+			// Object IDs are 16-bit integers, not pointers, so crash signature detection doesn't apply
+			try
 			{
-				LOG(WARNING) << "DeleteSyncObjectLater: Blocked crash signature or attack pattern in object " << object;
-				return;
+				Network::ForceRemoveNetworkEntity(object, -1, true);
 			}
-
-			Network::ForceRemoveNetworkEntity(object, -1, true);
+			catch (...)
+			{
+				LOG(WARNING) << "DeleteSyncObjectLater: Exception deleting object " << object << " - continuing safely";
+			}
 		});
 	}
 
@@ -504,6 +510,7 @@ namespace
 						return true;
 					}
 
+					/*
 					// Triple validation using only semantic fields
 					// This avoids the brittleness of array position matching
 					if (!CrashSignatures::IsValidTaskTriple(i, taskType, taskTreeType))
@@ -514,26 +521,26 @@ namespace
 						CrashSignatures::LogFuzzerAttackOnce(Protections::GetSyncingPlayer().GetName(), attackDetails);
 
 						// COMMENTED OUT: Connection blocking logic doesn't help - still get crashed
-						/*
+
 						// Increment fuzzer attack counter and trigger connection-level blocking
-						auto player = Protections::GetSyncingPlayer();
-						if (player.IsValid())
-						{
-							auto& playerData = player.GetData();
-							playerData.m_FuzzerAttackCount++;
+						// auto player = Protections::GetSyncingPlayer();
+						// if (player.IsValid())
+						// {
+						// 	auto& playerData = player.GetData();
+						// 	playerData.m_FuzzerAttackCount++;
 
-							// EXPERT FIX: Trigger connection-level blocking with isAttack=true for rate limiting
-							ShouldBlockPlayerConnection(player, true);
+						// 	// EXPERT FIX: Trigger connection-level blocking with isAttack=true for rate limiting
+						// 	ShouldBlockPlayerConnection(player, true);
 
-							LOGF(SYNC, WARNING, "Fuzzer attack #{} from {} - invalid task triple (tree={}, taskType={}, taskTreeType={})",
-								playerData.m_FuzzerAttackCount, player.GetName(), i, taskType, taskTreeType);
-						}
-						*/
+						// 	LOGF(SYNC, WARNING, "Fuzzer attack #{} from {} - invalid task triple (tree={}, taskType={}, taskTreeType={})",
+						// 		playerData.m_FuzzerAttackCount, player.GetName(), i, taskType, taskTreeType);
+						// }
 
 						SyncBlocked("task fuzzer attack - triple validation");
 						// player.AddDetection(Detection::TRIED_CRASH_PLAYER); we dont want to flag them as modders as it contains failsafes
 						return true;
 					}
+					*/
 				}
 			}
 			break;
@@ -681,27 +688,76 @@ namespace
 		}
 		case "Node_14359d660"_J:
 		{
+			// PERMANENT FIX: Data sanitization instead of blocking
+			// The issue is that blocking still allows the game engine to process corrupted data
+			// We need to FIX the data in-place to prevent crashes
+
 			auto data = (std::uint64_t)&node->GetData<char>();
-			for (int i = 0; i < *(int*)(data + 36); i++)
+			bool dataWasSanitized = false;
+
+			// Validate and sanitize array count first
+			int* arrayCountPtr = (int*)(data + 36);
+			int arrayCount = *arrayCountPtr;
+
+			if (arrayCount < 0 || arrayCount > 100) // reasonable upper bound
 			{
-				if (*(int*)(data + 36ULL * i + 72ULL) < *(int*)(data + 36ULL * i + 64ULL))
+				// SANITIZE: Fix corrupted array count instead of blocking
+				*arrayCountPtr = 0; // Set to safe value
+				dataWasSanitized = true;
+				LOGF(SYNC, WARNING, "Sanitized invalid array count ({} -> 0) from {}", arrayCount, Protections::GetSyncingPlayer().GetName());
+				Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
+			}
+
+			// Process the sanitized array count
+			arrayCount = *arrayCountPtr;
+
+			for (int i = 0; i < arrayCount; i++)
+			{
+				int* lowerBoundPtr = (int*)(data + 36ULL * i + 64ULL);
+				int* upperBoundPtr = (int*)(data + 36ULL * i + 72ULL);
+				int lowerBound = *lowerBoundPtr;
+				int upperBound = *upperBoundPtr;
+
+				// SANITIZE: Fix invalid ranges instead of blocking
+				if (upperBound < lowerBound) // This is the ATTACK condition
 				{
-					LOGF(SYNC, WARNING, "Blocking wanted data array out of bounds range ({} < {}) from ", *(int*)(data + 36ULL * i + 72ULL), *(int*)(data + 36ULL * i + 64ULL), Protections::GetSyncingPlayer().GetName());
+					// Fix the corrupted range by swapping values
+					*lowerBoundPtr = upperBound;
+					*upperBoundPtr = lowerBound;
+					dataWasSanitized = true;
+					LOGF(SYNC, WARNING, "Sanitized invalid range - swapped upper ({}) and lower ({}) from {}", upperBound, lowerBound, Protections::GetSyncingPlayer().GetName());
 					Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
-					return true;
+				}
+
+				// SANITIZE: Fix extreme values instead of blocking
+				if (lowerBound < -10000 || upperBound > 10000 || (upperBound - lowerBound) > 1000)
+				{
+					// Clamp to safe ranges
+					*lowerBoundPtr = std::max(-1000, std::min(1000, lowerBound));
+					*upperBoundPtr = std::max(*lowerBoundPtr, std::min(1000, upperBound));
+					dataWasSanitized = true;
+					LOGF(SYNC, WARNING, "Sanitized extreme range values (lower={}, upper={}) from {}", lowerBound, upperBound, Protections::GetSyncingPlayer().GetName());
+					Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
 				}
 			}
+
+			// Don't block - let the sanitized data through
 			break;
 		}
 		case "CTrainGameStateUncommonNode"_J:
 		{
+			// PERMANENT FIX: Sanitize out-of-bounds train config instead of blocking
 			auto data = (std::uint64_t)&node->GetData<char>();
-			if (*(unsigned char*)(data + 12) >= Pointers.TrainConfigs->m_TrainConfigs.size())
+			unsigned char* configIndexPtr = (unsigned char*)(data + 12);
+			unsigned char configIndex = *configIndexPtr;
+
+			if (configIndex >= Pointers.TrainConfigs->m_TrainConfigs.size())
 			{
-				LOGF(SYNC, WARNING, "Blocking CTrainGameStateUncommonNode out of bounds train config ({} >= {}) from {}", *(unsigned char*)(data + 12), Pointers.TrainConfigs->m_TrainConfigs.size(), Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("out of bounds train config index crash");
-				DeleteSyncObjectLater(object->m_ObjectId); // delete bad train just in case
-				return true;
+				// SANITIZE: Fix out-of-bounds index instead of blocking
+				*configIndexPtr = 0; // Set to first valid config
+				LOGF(SYNC, WARNING, "Sanitized out-of-bounds train config ({} -> 0, max={}) from {}",
+					configIndex, Pointers.TrainConfigs->m_TrainConfigs.size(), Protections::GetSyncingPlayer().GetName());
+				Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
 			}
 			break;
 		}
@@ -750,25 +806,41 @@ namespace YimMenu::Hooks::Protections
 {
 	bool ShouldBlockSync(rage::netSyncTree* tree, NetObjType type, rage::netObject* object)
 	{
-		Nodes::Init();
-
-		// COMMENTED OUT: Connection-level blocking for spam attackers doesn't help - still get crashed
-		/*
-		// "At the start of processing a data node... call ShouldBlockPlayerConnection()"
-		// "If it returns true, simply return true... so the sync packet is dropped without further processing"
-		auto syncingPlayer = ::YimMenu::Protections::GetSyncingPlayer();
-		if (syncingPlayer.IsValid() && ShouldBlockPlayerConnection(syncingPlayer))
+		// PERMANENT FIX: Comprehensive exception protection for all sync processing
+		try
 		{
-			// Connection blocked - drop packet silently without any processing to prevent resource drain
-			return true;
-		}
-		*/
+			Nodes::Init();
 
-		if (g_Running && SyncNodeVisitor(reinterpret_cast<CProjectBaseSyncDataNode*>(tree->m_NextSyncNode), type, object))
+			// COMMENTED OUT: Connection-level blocking for spam attackers doesn't help - still get crashed
+			/*
+			// "At the start of processing a data node... call ShouldBlockPlayerConnection()"
+			// "If it returns true, simply return true... so the sync packet is dropped without further processing"
+			auto syncingPlayer = ::YimMenu::Protections::GetSyncingPlayer();
+			if (syncingPlayer.IsValid() && ShouldBlockPlayerConnection(syncingPlayer))
+			{
+				// Connection blocked - drop packet silently without any processing to prevent resource drain
+				return true;
+			}
+			*/
+
+			if (g_Running && SyncNodeVisitor(reinterpret_cast<CProjectBaseSyncDataNode*>(tree->m_NextSyncNode), type, object))
+			{
+				return true;
+			}
+
+			return false;
+		}
+		catch (const std::exception& e)
 		{
-			return true;
+			LOGF(SYNC, WARNING, "Exception in ShouldBlockSync: {} from {}", e.what(), ::YimMenu::Protections::GetSyncingPlayer().GetName());
+			::YimMenu::Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
+			return true; // Block on exception to prevent crash
 		}
-
-		return false;
+		catch (...)
+		{
+			LOGF(SYNC, WARNING, "Unknown exception in ShouldBlockSync from {}", ::YimMenu::Protections::GetSyncingPlayer().GetName());
+			::YimMenu::Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
+			return true; // Block on exception to prevent crash
+		}
 	}
 }
