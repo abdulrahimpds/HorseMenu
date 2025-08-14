@@ -58,7 +58,7 @@ namespace YimMenu::Submenus
 
 	// shared variables for ped spawning
 	static std::string g_PedModelBuffer;
-	static bool g_Dead, g_Invis, g_Godmode, g_Freeze, g_Companion, g_Sedated, g_Armed;
+	static bool g_Dead, g_Invis, g_Godmode, g_Freeze, g_Companion, g_Sedated, g_Armed, g_BypassRelationship;
 	static float g_Scale = 1.0f;
 	static int g_Variation = 0;
 	static int g_Formation = 0;
@@ -163,20 +163,106 @@ namespace YimMenu::Submenus
 		ImGui::Separator();
 		ImGui::Spacing();
 
-		// placeholder buttons
+		// database operation buttons
 		if (ImGui::Button("Clear"))
 		{
-			// placeholder functionality
+			// completely release ownership and let them behave like regular ambient NPCs
+			FiberPool::Push([] {
+				for (auto it = g_SpawnedPeds.begin(); it != g_SpawnedPeds.end();)
+				{
+					if (it->IsValid())
+					{
+						// remove from player group completely
+						PED::REMOVE_PED_FROM_GROUP(it->GetHandle());
+
+						// make them targetable again (like regular NPCs)
+						PED::SET_PED_CAN_BE_TARGETTED_BY_PLAYER(it->GetHandle(), YimMenu::Self::GetPlayer().GetId(), true);
+
+						// restore default relationship group based on ped's model
+						Hash defaultRel = PED::GET_PED_RELATIONSHIP_GROUP_DEFAULT_HASH(it->GetHandle());
+						PED::SET_PED_RELATIONSHIP_GROUP_HASH(it->GetHandle(), defaultRel);
+
+						// clear all tasks so they start fresh AI behavior
+						TASK::CLEAR_PED_TASKS_IMMEDIATELY(it->GetHandle(), false, true);
+
+						// mark ped/entity as no longer needed so engine/network can manage it
+						{
+							auto hnd = it->GetHandle();
+							// available in our SDK as PED::DELETE_PED / ENTITY::SET_ENTITY_AS_NO_LONGER_NEEDED; SET_PED_AS_NO_LONGER_NEEDED is not exposed
+							ENTITY::SET_ENTITY_AS_NO_LONGER_NEEDED(&hnd);
+						}
+
+						// allow normal AI behavior and reactions
+						PED::SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(it->GetHandle(), false);
+
+						// reset to default flee attributes (so they can flee like normal NPCs)
+						PED::SET_PED_FLEE_ATTRIBUTES(it->GetHandle(), 0, true);
+
+						// remove companion/gang decorators if they exist
+						if (DECORATOR::DECOR_EXIST_ON(it->GetHandle(), "SH_CMP_companion"))
+							DECORATOR::DECOR_REMOVE(it->GetHandle(), "SH_CMP_companion");
+						if (DECORATOR::DECOR_EXIST_ON(it->GetHandle(), "SH_STORY_GANG"))
+							DECORATOR::DECOR_REMOVE(it->GetHandle(), "SH_STORY_GANG");
+						if (DECORATOR::DECOR_EXIST_ON(it->GetHandle(), "SH_HORSE_MALE"))
+							DECORATOR::DECOR_REMOVE(it->GetHandle(), "SH_HORSE_MALE");
+					}
+					it = g_SpawnedPeds.erase(it);
+				}
+			});
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Delete All"))
 		{
-			// placeholder functionality
+			// identical behavior to Cleanup Peds: delete every tracked ped and their mounts
+			FiberPool::Push([] {
+				for (auto it = g_SpawnedPeds.begin(); it != g_SpawnedPeds.end();)
+				{
+					if (it->IsValid())
+					{
+						if (it->GetMount())
+						{
+							it->GetMount().ForceControl();
+							if (it->GetMount().HasControl())
+								it->GetMount().ForceSync();
+							it->GetMount().Delete();
+						}
+						it->ForceControl();
+						if (it->HasControl())
+							it->ForceSync();
+						it->Delete();
+					}
+					it = g_SpawnedPeds.erase(it);
+				}
+			});
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Delete Dead"))
 		{
-			// placeholder functionality
+			// same as Cleanup Peds but only for peds that are dead
+			FiberPool::Push([] {
+				for (auto it = g_SpawnedPeds.begin(); it != g_SpawnedPeds.end();)
+				{
+					bool erased = false;
+					if (it->IsValid() && it->IsDead())
+					{
+						if (it->GetMount())
+						{
+							it->GetMount().ForceControl();
+							if (it->GetMount().HasControl())
+								it->GetMount().ForceSync();
+							it->GetMount().Delete();
+						}
+						it->ForceControl();
+						if (it->HasControl())
+							it->ForceSync();
+						it->Delete();
+						it = g_SpawnedPeds.erase(it);
+						erased = true;
+					}
+					if (!erased)
+						++it;
+				}
+			});
 		}
 
 		// list of spawned peds
@@ -429,6 +515,12 @@ namespace YimMenu::Submenus
 
 			ped.SetInvincible(g_Godmode);
 
+			// global relationship bypass: apply before godmode, but do not affect companion or story gang
+			if (g_BypassRelationship && !g_Companion && !isStoryGang)
+			{
+				PED::SET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle(), Joaat("NO_RELATIONSHIP"));
+			}
+
 			// enhanced godmode logic - creates formidable boss-level threats
 			if (g_Godmode)
 			{
@@ -504,7 +596,7 @@ namespace YimMenu::Submenus
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 51, false);  // CA_REMOVE_AREA_SET_WILL_ADVANCE_WHEN_DEFENSIVE_AREA_REACHED
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 52, false);  // CA_USE_VEHICLE_ATTACK
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 53, false);  // CA_USE_VEHICLE_ATTACK_IF_VEHICLE_HAS_MOUNTED_GUNS
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 54, false);  // CA_ALWAYS_EQUIP_BEST_WEAPON
+				//PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 54, false);  // CA_ALWAYS_EQUIP_BEST_WEAPON
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 55, false);  // CA_CAN_SEE_UNDERWATER_PEDS
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 56, false);  // CA_DISABLE_AIM_AT_AI_TARGETS_IN_HELIS
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 58, false);  // CA_DISABLE_FLEE_FROM_COMBAT
@@ -539,7 +631,7 @@ namespace YimMenu::Submenus
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 88, false);  // CA_0xA265A9FC
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 89, false);  // CA_0xE3FA8ABB
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 90, false);  // CA_0x9AA00FOF
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 91, false);  // CA_USE_RANGE_BASED_WEAPON_SELECTION
+				//PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 91, false);  // CA_USE_RANGE_BASED_WEAPON_SELECTION
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 92, false);  // CA_0x8AF8D68D
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 93, false);  // CA_PREFER_MELEE
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 94, false);  // CA_UNUSED11
@@ -563,7 +655,7 @@ namespace YimMenu::Submenus
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 112, false); // CA_0x8EB01547
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 114, false); // CA_CAN_EXECUTE_TARGET
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 115, false); // CA_DISABLE_RETREAT_DUE_TO_TARGET_PROXIMITY
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 116, false); // CA_PREFER_DUAL_WIELD
+				//PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 116, false); // CA_PREFER_DUAL_WIELD
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 117, false); // CA_WILL_CUT_FREE_HOGTIED_PEDS
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 118, false); // CA_TRY_TO_FORCE_SURRENDER
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 119, false); // CA_0x0136E7B6
@@ -583,7 +675,6 @@ namespace YimMenu::Submenus
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 134, false); // CA_0xA78BB3BD
 
 				PED::SET_PED_ACCURACY(ped.GetHandle(), 85);
-				PED::SET_PED_RELATIONSHIP_GROUP_HASH(ped.GetHandle(), Joaat("NO_RELATIONSHIP"));
 			}
 
 			ped.SetVisible(!g_Invis);
@@ -649,7 +740,7 @@ namespace YimMenu::Submenus
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 114, true); // CA_CAN_EXECUTE_TARGET - enable execution moves
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 115, true); // CA_DISABLE_RETREAT_DUE_TO_TARGET_PROXIMITY - never retreat
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 125, true); // CA_QUIT_WHEN_TARGET_FLEES_INTERACTION_FIGHT - continue fighting
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 91, true);  // CA_USE_RANGE_BASED_WEAPON_SELECTION
+				//PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 91, true);  // CA_USE_RANGE_BASED_WEAPON_SELECTION
 
 				// === DISABLED COMBAT ATTRIBUTES ===
 				// disable flee behaviors - companions never flee
@@ -694,7 +785,7 @@ namespace YimMenu::Submenus
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 51, false);  // CA_REMOVE_AREA_SET_WILL_ADVANCE_WHEN_DEFENSIVE_AREA_REACHED
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 52, false);  // CA_USE_VEHICLE_ATTACK
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 53, false);  // CA_USE_VEHICLE_ATTACK_IF_VEHICLE_HAS_MOUNTED_GUNS
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 54, false);  // CA_ALWAYS_EQUIP_BEST_WEAPON
+				//PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 54, false);  // CA_ALWAYS_EQUIP_BEST_WEAPON
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 55, false);  // CA_CAN_SEE_UNDERWATER_PEDS
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 56, false);  // CA_DISABLE_AIM_AT_AI_TARGETS_IN_HELIS
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 59, false);  // CA_DISABLE_TARGET_CHANGES_DURING_VEHICLE_PURSUIT
@@ -748,7 +839,7 @@ namespace YimMenu::Submenus
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 110, false); // CA_0x875B82F3
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 111, false); // CA_0x1CB77C49
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 112, false); // CA_0x8EB01547
-				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 116, false); // CA_PREFER_DUAL_WIELD
+				//PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 116, false); // CA_PREFER_DUAL_WIELD
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 117, false); // CA_WILL_CUT_FREE_HOGTIED_PEDS
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 118, false); // CA_TRY_TO_FORCE_SURRENDER
 				PED::SET_PED_COMBAT_ATTRIBUTES(ped.GetHandle(), 119, false); // CA_0x0136E7B6
@@ -872,7 +963,7 @@ namespace YimMenu::Submenus
 				PED::SET_PED_COMBAT_ABILITY(ped.GetHandle(), 2); // professional combat ability
 
 				PED::SET_PED_ACCURACY(ped.GetHandle(), 85); // high accuracy
-				
+
 				// create companion blip for tracking
 				auto blip = MAP::BLIP_ADD_FOR_ENTITY("BLIP_STYLE_COMPANION"_J, ped.GetHandle());
 				MAP::BLIP_ADD_MODIFIER(blip, "BLIP_MODIFIER_COMPANION_DOG"_J);
@@ -5032,6 +5123,7 @@ namespace YimMenu::Submenus
 		ImGui::Spacing();
 
 		// spawner settings using global variables
+		ImGui::Checkbox("Bypass Relationship", &g_BypassRelationship);
 		ImGui::Checkbox("Spawn Dead", &g_Dead);
 		ImGui::Checkbox("Sedated", &g_Sedated);
 		ImGui::Checkbox("Invisible", &g_Invis);
