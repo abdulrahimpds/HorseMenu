@@ -15,11 +15,13 @@
 
 #include <map>
 
+
 // shared animation ui state
 namespace {
 	std::string g_animDict;
 	std::string g_animName;
 	bool g_loopAnimation = false;
+	bool g_loopStopAnimation = false;
 }
 
 namespace YimMenu::Features
@@ -57,10 +59,33 @@ namespace YimMenu::Features
 		using Command::Command;
 		virtual void OnCall() override
 		{
+			// if loop is not enabled, perform a single stop like before
+			if (!g_loopStopAnimation)
+			{
+				FiberPool::Push([] {
+					auto ped = Self::GetPed();
+					if (ped.IsValid())
+						TASK::CLEAR_PED_TASKS(ped.GetHandle(), true, false);
+				});
+				return;
+			}
+
+			// loop is enabled: start a lightweight loop that repeatedly stops the animation
+			static bool s_loop_running = false;
+			if (s_loop_running)
+				return; // avoid spawning multiple loopers
+			s_loop_running = true;
 			FiberPool::Push([] {
-				auto ped = Self::GetPed();
-				if (ped.IsValid())
-					TASK::CLEAR_PED_TASKS(ped.GetHandle(), true, false);
+				while (g_loopStopAnimation)
+				{
+					auto ped = Self::GetPed();
+					if (ped.IsValid())
+						TASK::CLEAR_PED_TASKS(ped.GetHandle(), true, false);
+					// short yield to prevent starving the script scheduler
+					for (int i = 0; i < 5 && g_loopStopAnimation; ++i)
+						ScriptMgr::Yield();
+				}
+				s_loop_running = false;
 			});
 		}
 	};
@@ -77,7 +102,9 @@ namespace YimMenu::Submenus
 		InputTextWithHint("Dictionary", "Enter Dictionary Name", &g_animDict).Draw();
 		InputTextWithHint("Animation", "Enter Animation Name", &g_animName).Draw();
 
+		ImGui::PushID("play_loop");
 		ImGui::Checkbox("Loop", &g_loopAnimation);
+		ImGui::PopID();
 		ImGui::SameLine();
 		// draw as CommandItem so it supports Shift hotkeys
 		CommandItem("playanim"_J, "Play Animation").Draw();
@@ -147,6 +174,10 @@ namespace YimMenu::Submenus
 			}
 		}
 
+		ImGui::PushID("stop_loop");
+		ImGui::Checkbox("Loop", &g_loopStopAnimation);
+		ImGui::PopID();
+		ImGui::SameLine();
 		CommandItem("stopanim"_J, "Stop Animation").Draw();
 	}
 
