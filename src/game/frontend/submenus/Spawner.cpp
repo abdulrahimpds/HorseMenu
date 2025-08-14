@@ -5489,10 +5489,14 @@ namespace YimMenu::Submenus
 						if (it->GetMount())
 						{
 							it->GetMount().ForceControl();
+							if (it->GetMount().HasControl())
+								it->GetMount().ForceSync();
 							it->GetMount().Delete();
 						}
 
 						it->ForceControl();
+						if (it->HasControl())
+							it->ForceSync();
 						it->Delete();
 					}
 					it = g_SpawnedPeds.erase(it);

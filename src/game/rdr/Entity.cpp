@@ -5,6 +5,7 @@
 #include "game/pointers/Pointers.hpp"
 #include "game/backend/CrashSignatures.hpp"
 #include "util/Joaat.hpp"
+#include "util/network.hpp"
 
 #include <entity/CDynamicEntity.hpp>
 #include <entity/fwEntity.hpp>
@@ -239,8 +240,25 @@ namespace YimMenu
 
 		if (IsNetworked())
 		{
-			auto net = GetPointer<CDynamicEntity*>()->m_NetObject;
-			Network::ForceRemoveNetworkEntity(net->m_ObjectId, net->m_OwnershipToken);
+			// try to take control and let the game broadcast proper clone remove
+			if (!HasControl())
+				YimMenu::Network::RequestControlOfEntity(GetHandle(), 60);
+
+			if (HasControl())
+			{
+				// mark as mission entity locally to allow delete
+				if (!ENTITY::IS_ENTITY_A_MISSION_ENTITY(GetHandle()))
+					ENTITY::SET_ENTITY_AS_MISSION_ENTITY(GetHandle(), true, true);
+				// delete natively while owning so the engine emits proper clone remove
+				auto hnd = GetHandle();
+				ENTITY::DELETE_ENTITY(&hnd);
+			}
+			else
+			{
+				// fallback: craft explicit remove for all tokens so peers drop it
+				if (auto net = GetNetworkObject())
+					Network::ForceRemoveNetworkEntity(net->m_ObjectId, -1);
+			}
 		}
 		else
 		{
