@@ -14,6 +14,8 @@
 #include <network/CNetObjectMgr.hpp>
 #include <network/netObject.hpp>
 #include <cmath>
+#include "game/rdr/Network.hpp"
+
 
 #include "game/backend/CrashSignatures.hpp"
 
@@ -62,7 +64,7 @@ namespace YimMenu::Teleport
 
 		return true;
 	}
-	
+
 	// Entity typdef is being ambiguous with Entity class
 	inline bool TeleportEntity(int ent, rage::fvector3 coords, bool loadGround = false)
 	{
@@ -131,214 +133,135 @@ namespace YimMenu::Teleport
 
 	inline bool TeleportPlayerToCoords(Player player, Vector3 coords)
 	{
-		// validate player before any operations (exact crash location from .map analysis)
 		if (!player.IsValid())
-		{
-			LOG(WARNING) << "TeleportPlayerToCoords: Invalid player object - skipping teleport";
 			return false;
-		}
 
-		// validate player ped before accessing
 		auto playerPed = player.GetPed();
 		if (!playerPed.IsValid())
-		{
-			LOG(WARNING) << "TeleportPlayerToCoords: Invalid player ped - skipping teleport";
 			return false;
-		}
 
-		// validate ped pointer against crash signature database with intelligent pattern detection
-		auto pedPtr = playerPed.GetPointer<void*>();
-		if (CrashSignatures::IsKnownCrashPointerEnhanced(pedPtr))
-		{
-			LOG(WARNING) << "TeleportPlayerToCoords: Blocked crash signature or attack pattern in ped pointer";
-			return false;
-		}
-
-		// wrap handle access in exception handling
-		int handle = 0;
-		try
-		{
-			handle = playerPed.GetHandle();
-		}
-		catch (...)
-		{
-			LOG(WARNING) << "TeleportPlayerToCoords: Exception getting ped handle - crash attempt blocked";
-			return false;
-		}
-
+		int handle = playerPed.GetHandle();
 		if (ENTITY::IS_ENTITY_DEAD(handle))
 		{
 			Notifications::Show("Teleport", "The player you want to teleport is dead!", NotificationType::Error);
 			return false;
 		}
 
-		// validate mount access with exception handling
-		try
+		if (playerPed.GetMount())
 		{
-			if (playerPed.GetMount())
-			{
-				playerPed.GetMount().ForceControl();
-			}
-		}
-		catch (...)
-		{
-			LOG(WARNING) << "TeleportPlayerToCoords: Exception accessing mount - continuing without mount control";
+			playerPed.GetMount().ForceControl();
 		}
 
-		// validate player position before vehicle creation
-		rage::fvector3 playerPos;
-		try
-		{
-			playerPos = playerPed.GetPosition();
-		}
-		catch (...)
-		{
-			LOG(WARNING) << "TeleportPlayerToCoords: Exception getting player position - teleport failed";
-			return false;
-		}
+		auto playerPos = playerPed.GetPosition();
 
-		// validate position coordinates
-		if (std::isnan(playerPos.x) || std::isnan(playerPos.y) || std::isnan(playerPos.z) ||
-		    std::isinf(playerPos.x) || std::isinf(playerPos.y) || std::isinf(playerPos.z) ||
-		    playerPos.x == 0.0f && playerPos.y == 0.0f && playerPos.z == 0.0f)
-		{
-			LOG(WARNING) << "TeleportPlayerToCoords: Invalid player position (" << playerPos.x << ", " << playerPos.y << ", " << playerPos.z << ") - teleport failed";
-			return false;
-		}
-
-		// wrap vehicle creation in exception handling
-		Vehicle ent(0); // initialize with null handle
-		try
-		{
-			ent = Vehicle::Create("buggy01"_J, playerPos);
-		}
-		catch (...)
-		{
-			LOG(WARNING) << "TeleportPlayerToCoords: Exception creating vehicle - teleport failed";
-			return false;
-		}
-
-		// validate vehicle entity before accessing
+		Vehicle ent = Vehicle::Create("buggy01"_J, playerPos);
 		if (!ent.IsValid())
-		{
-			LOG(WARNING) << "TeleportPlayerToCoords: Created vehicle is invalid - teleport failed";
 			return false;
-		}
 
 		auto ptr = ent.GetPointer<CDynamicEntity*>();
 
 		if (!ptr || !ptr->m_NetObject)
 		{
 			Notifications::Show("Teleport", "Vehicle net object is null!", NotificationType::Error);
+			ent.Delete();
 			return false;
 		}
 
-		// validate vehicle entity before modifying properties
-		if (ent.IsValid())
-		{
-			ent.SetVisible(false);
-			ent.SetCollision(false);
-			ent.SetFrozen(true);
-		}
-		else
-		{
-			LOG(WARNING) << "TeleportPlayerToCoords: Vehicle became invalid before property modification";
-			return false;
-		}
+		ent.SetVisible(false);
+		ent.SetCollision(false);
+		ent.SetFrozen(true);
 
 		auto vehId = ptr->m_NetObject->m_ObjectId;
 
-		// validate player ped pointer before accessing m_NetObject (exact crash location)
-		uint16_t playerId = 0;
-		try
+		auto playerPedPtr = playerPed.GetPointer<CDynamicEntity*>();
+		if (!playerPedPtr || !playerPedPtr->m_NetObject)
 		{
-			auto playerPedPtr = playerPed.GetPointer<CDynamicEntity*>();
-			if (!playerPedPtr || !playerPedPtr->m_NetObject)
-			{
-				LOG(WARNING) << "TeleportPlayerToCoords: Player ped or net object is null - teleport failed";
-				if (ent.IsValid()) ent.Delete();
-				return false;
-			}
-
-			// check against crash signature database with intelligent pattern detection
-			if (CrashSignatures::IsKnownCrashPointerEnhanced(playerPedPtr) ||
-			    CrashSignatures::IsKnownCrashPointerEnhanced(playerPedPtr->m_NetObject))
-			{
-				LOG(WARNING) << "TeleportPlayerToCoords: Blocked crash signature or attack pattern in player net object";
-				if (ent.IsValid()) ent.Delete();
-				return false;
-			}
-
-			playerId = playerPedPtr->m_NetObject->m_ObjectId;
-		}
-		catch (...)
-		{
-			LOG(WARNING) << "TeleportPlayerToCoords: Exception accessing player net object - crash attempt blocked";
-			if (ent.IsValid()) ent.Delete();
+			Notifications::Show("Teleport", "Player net object is null!", NotificationType::Error);
+			ent.Delete();
 			return false;
 		}
+
+		std::uint16_t playerId = playerPedPtr->m_NetObject->m_ObjectId;
 		Spoofing::RemotePlayerTeleport remoteTp = {playerId, {coords.x, coords.y, coords.z}};
 
 		g_SpoofingStorage.m_RemotePlayerTeleports.emplace(vehId, remoteTp);
 
-		// validate player and handle before clearing tasks (spam-click protection)
-		try
-		{
-			if (player.IsValid() && playerPed.IsValid())
-			{
-				int pedHandle = playerPed.GetHandle();
-				// validate handle before using in natives
-				if (pedHandle != 0 && ENTITY::DOES_ENTITY_EXIST(pedHandle) && PED::IS_PED_IN_ANY_VEHICLE(pedHandle, false))
-				{
-					TASK::CLEAR_PED_TASKS_IMMEDIATELY(pedHandle, true, true);
-				}
-			}
-		}
-		catch (...)
-		{
-			LOG(WARNING) << "TeleportPlayerToCoords: Exception clearing ped tasks - continuing teleport";
-		}
+		TASK::CLEAR_PED_TASKS_IMMEDIATELY(handle, true, true);
 
 		for (int i = 0; i < 40; i++)
 		{
 			ScriptMgr::Yield(25ms);
 
-			// validate player handle before accessing (spam-click protection)
-			try
+			if (!player.IsValid() || !ent.IsValid())
+				break;
+
+			Pointers.TriggerGiveControlEvent(player.GetHandle(), ptr->m_NetObject, 3);
+
+			auto newCoords = ent.GetPosition();
+			if (BUILTIN::VDIST(coords.x, coords.y, coords.z, newCoords.x, newCoords.y, newCoords.z) < 20 * 20 && VEHICLE::GET_PED_IN_VEHICLE_SEAT(ent.GetHandle(), 0) == handle)
 			{
-				if (!player.IsValid())
-				{
-					LOG(WARNING) << "TeleportPlayerToCoords: Player became invalid during teleport loop";
-					break;
-				}
-
-				// validate entities before using in natives
-				if (!ent.IsValid())
-				{
-					LOG(WARNING) << "TeleportPlayerToCoords: Vehicle became invalid during teleport loop";
-					break;
-				}
-
-				Pointers.TriggerGiveControlEvent(player.GetHandle(), ptr->m_NetObject, 3);
-
-				auto newCoords = ent.GetPosition();
-				if (BUILTIN::VDIST(coords.x, coords.y, coords.z, newCoords.x, newCoords.y, newCoords.z) < 20 * 20 && VEHICLE::GET_PED_IN_VEHICLE_SEAT(ent.GetHandle(), 0) == handle)
-				{
-					break;
-				}
-			}
-			catch (...)
-			{
-				LOG(WARNING) << "TeleportPlayerToCoords: Exception in teleport loop - breaking";
 				break;
 			}
 		}
 
-		// validate vehicle before cleanup operations
+		// comprehensive cleanup to prevent buggy vehicles
 		if (ent.IsValid())
 		{
+			// first, eject any occupants from the teleport vehicle
+			for (int seat = -1; seat < 8; seat++)
+			{
+				if (!VEHICLE::IS_VEHICLE_SEAT_FREE(ent.GetHandle(), seat))
+				{
+					int occupant = VEHICLE::GET_PED_IN_VEHICLE_SEAT(ent.GetHandle(), seat);
+					if (ENTITY::DOES_ENTITY_EXIST(occupant))
+					{
+						TASK::TASK_LEAVE_VEHICLE(occupant, ent.GetHandle(), 0, 0);
+					}
+				}
+			}
+
+			// wait for occupants to exit
+			for (int j = 0; j < 10; j++)
+			{
+				ScriptMgr::Yield(50ms);
+				bool anyOccupants = false;
+				for (int seat = -1; seat < 8; seat++)
+				{
+					if (!VEHICLE::IS_VEHICLE_SEAT_FREE(ent.GetHandle(), seat))
+					{
+						anyOccupants = true;
+						break;
+					}
+				}
+				if (!anyOccupants)
+					break;
+			}
+
+			// force control and delete locally + broadcast explicit remove to all peers
 			ent.ForceControl();
-			ent.Delete();
+			ScriptMgr::Yield(50ms);
+			if (ent.HasControl())
+			{
+				// use network helper to force remove for all tokens, then delete locally
+				auto net = ent.GetNetworkObject();
+				if (net)
+				{
+					Network::ForceRemoveNetworkEntity(net->m_ObjectId, -1, true);
+				}
+				else
+				{
+					ent.Delete();
+				}
+			}
+			else
+			{
+				// fallback if we failed to take control: try explicit remove anyway
+				auto net = ent.GetNetworkObject();
+				if (net)
+					Network::ForceRemoveNetworkEntity(net->m_ObjectId, -1, true);
+				else
+					ent.Delete();
+			}
 		}
 
 		std::erase_if(g_SpoofingStorage.m_RemotePlayerTeleports, [vehId](auto& obj) {

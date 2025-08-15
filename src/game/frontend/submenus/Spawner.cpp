@@ -50,6 +50,10 @@ namespace YimMenu::Submenus
 	static bool g_InAnimals = false;
 	static bool g_InFishes = false;
 
+	// ped details subview (shared window for all peds)
+	static bool g_InPedDetailsView = false;
+	static int g_SelectedPedIndex = -1;
+
 	// horse gender selection (1 = female, 0 = male)
 	static int g_HorseGender = 0;
 
@@ -297,12 +301,56 @@ namespace YimMenu::Submenus
 					auto modelHash = ped.GetModel();
 					auto it = Data::g_PedModels.find(modelHash);
 					std::string pedName = (it != Data::g_PedModels.end()) ? it->second : "Unknown";
-
-					ImGui::Text("%zu. %s", i + 1, pedName.c_str());
+					std::string entry = std::to_string(i + 1) + ". " + pedName;
+					if (ImGui::Selectable(entry.c_str()))
+					{
+						g_SelectedPedIndex = static_cast<int>(i);
+						g_InPedDetailsView = true; // go into shared ped window
+					}
 				}
 			}
 		}
 	}
+
+		static void RenderPedDetailsView()
+		{
+			// back button in top-right corner
+			ImVec2 windowSize = ImGui::GetContentRegionAvail();
+			ImVec2 originalPos = ImGui::GetCursorPos();
+
+			ImGui::SetCursorPos(ImVec2(windowSize.x - 30, 5));
+			if (ImGui::Button("X", ImVec2(25, 25)))
+			{
+				// close details view and return to ped database
+				g_InPedDetailsView = false;
+			}
+
+			// reset cursor to original position and add some top margin
+			ImGui::SetCursorPos(ImVec2(originalPos.x, originalPos.y + 35));
+
+			// header showing selected ped (if valid)
+			ImGui::PushFont(Menu::Font::g_ChildTitleFont);
+			std::string header = "Ped Details";
+			if (g_SelectedPedIndex >= 0 && g_SelectedPedIndex < static_cast<int>(g_SpawnedPeds.size()))
+			{
+				auto& ped = g_SpawnedPeds[g_SelectedPedIndex];
+				if (ped.IsValid())
+				{
+					auto modelHash = ped.GetModel();
+					auto it = Data::g_PedModels.find(modelHash);
+					std::string pedName = (it != Data::g_PedModels.end()) ? it->second : "Unknown";
+					header += " - " + pedName;
+				}
+			}
+			ImGui::Text("%s", header.c_str());
+			ImGui::PopFont();
+			ImGui::Separator();
+			ImGui::Spacing();
+
+			// empty content for now (shared window for all peds)
+			ImGui::Text("(empty)");
+		}
+
 
 	// reusable search helper system for all navigation menus
 	template<typename T>
@@ -993,16 +1041,16 @@ namespace YimMenu::Submenus
 				Hash storyGangGroup = "REL_GANG_DUTCHS"_J;
 
 				// set hostile relationships with enemy groups
-				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_RE_ENEMY"_J);
-				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_PLAYER_ENEMY"_J);
-				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_GANG_ODRISCOLL"_J);
-				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_GANG_MURFREE_BROOD"_J);
-				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_GANG_SKINNER_BROTHERS"_J);
-				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_GANG_LARAMIE_GANG"_J);
-				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_GANG_LEMOYNE_RAIDERS"_J);
-				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_GANG_CREOLE"_J);
-				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_GANG_SMUGGLERS"_J);
-				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(6, storyGangGroup, "REL_PINKERTONS"_J);
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, storyGangGroup, "REL_RE_ENEMY"_J);
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, storyGangGroup, "REL_PLAYER_ENEMY"_J);
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, storyGangGroup, "REL_GANG_ODRISCOLL"_J);
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, storyGangGroup, "REL_GANG_MURFREE_BROOD"_J);
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, storyGangGroup, "REL_GANG_SKINNER_BROTHERS"_J);
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, storyGangGroup, "REL_GANG_LARAMIE_GANG"_J);
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, storyGangGroup, "REL_GANG_LEMOYNE_RAIDERS"_J);
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, storyGangGroup, "REL_GANG_CREOLE"_J);
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, storyGangGroup, "REL_GANG_SMUGGLERS"_J);
+				PED::SET_RELATIONSHIP_BETWEEN_GROUPS(5, storyGangGroup, "REL_PINKERTONS"_J);
 
 				// === STORY GANG MAINTENANCE LOGIC ===
 				// initial health/stamina/deadeye setup
@@ -5609,7 +5657,11 @@ namespace YimMenu::Submenus
 
 		// main category with nested navigation (formerly peds)
 		main->AddItem(std::make_shared<ImGuiItem>([] {
-			if (g_InPedDatabase)
+			if (g_InPedDetailsView)
+			{
+				RenderPedDetailsView();
+			}
+			else if (g_InPedDatabase)
 			{
 				RenderPedDatabaseView();
 			}
