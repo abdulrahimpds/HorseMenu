@@ -136,12 +136,15 @@ namespace YimMenu::Hooks
 			}
 		}
 
-		if (type == NetEventType::NETWORK_CLEAR_PED_TASKS_EVENT && sourcePlayer && Features::_BlockClearTasks.GetState())
+		if (type == NetEventType::NETWORK_PTFX_EVENT && sourcePlayer)
 		{
-			auto net_id = new_buffer.Read<uint16_t>(13);
-			if (net_id == Self::GetPed().GetNetworkObjectId())
+			if (Features::_BlockPtfx.GetState() || (Player(sourcePlayer).IsValid() && Player(sourcePlayer).GetData().m_BlockParticles))
 			{
-				LOG(WARNING) << "Blocked clear ped tasks from " << sourcePlayer->GetName();
+				auto rid = Player(sourcePlayer).GetRID();
+				if (g_PtfxWarned.insert(rid).second)
+				{
+					LOG(WARNING) << "Blocked particle effects from " << sourcePlayer->GetName();
+				}
 				Pointers.SendEventAck(eventMgr, nullptr, sourcePlayer, targetPlayer, index, handledBits);
 				return;
 			}
