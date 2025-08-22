@@ -179,6 +179,24 @@ namespace YimMenu::Hooks
 			    event->m_PeerAddress.m_ExternalPort,
 			    event->m_PeerAddress.m_RelayState);
 
+			// block join if the RID carried in the ticket doesn't match the RID in the peer address (spoof detection)
+			{
+				const uint64_t rid_ticket = event->m_Identifier.m_Handle.m_RockstarId;          // from session identifier (ticket)
+				const uint64_t rid_addr   = event->m_PeerAddress.m_GamerHandle.m_RockstarId;     // from peer address (what they present)
+				if (rid_ticket != rid_addr)
+				{
+					std::string msg = std::string("Blocked player join (spoofed RID) addr=")
+					                      .append(std::to_string(rid_addr))
+					                      .append(" ident=")
+					                      .append(std::to_string(rid_ticket));
+					Notifications::Show("Protections", msg, NotificationType::Warning);
+					LOG(WARNING) << msg;
+
+					// do not forward to the original handler; drop this add-player event locally
+					return;
+				}
+			}
+
 			// detect when WE join a new session (not just another player joining our session)
 			// additional check: only trigger if we actually need the fix
 			if (!g_InSession && g_NeedsAutoFix)

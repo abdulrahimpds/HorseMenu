@@ -90,10 +90,11 @@ namespace YimMenu
 	{
 		if (GetPlayer(rid) == nullptr)
 		{
-			auto player  = std::make_shared<persistent_player>();
-			player->rid  = rid;
-			player->name = name;
-			m_Data[rid]  = player;
+			auto player        = std::make_shared<persistent_player>();
+			player->rid        = rid;
+			player->name       = name;
+			player->block_join = true; // default-enable block join when added via UI button
+			m_Data[rid]        = player;
 			Save();
 		}
 	}

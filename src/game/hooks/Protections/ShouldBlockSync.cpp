@@ -209,71 +209,6 @@ namespace
 		}
 	}
 
-	// Connection-level blocking for spam attackers
-	// "keep a per‑player attack counter and temporarily block all incoming sync packets"
-	/*
-	inline bool ShouldBlockPlayerConnection(YimMenu::Player& player, bool isAttack = false)
-	{
-		if (!player.IsValid())
-			return false;
-
-		auto& data = player.GetData();
-		auto now = std::chrono::steady_clock::now();
-
-		// Check if player is currently blocked and if block period has expired
-		if (data.m_ConnectionBlocked)
-		{
-			if (now >= data.m_BlockedUntil)
-			{
-				// Unblock the player after 5 minutes
-				data.m_ConnectionBlocked = false;
-				data.m_FuzzerAttackCount = 0; // Reset attack count
-				LOGF(SYNC, INFO, "UNBLOCKED connection from {} after 5-minute timeout", player.GetName());
-			}
-			else
-			{
-				// Still blocked - drop all packets silently
-				return true;
-			}
-		}
-
-		// Check total attack threshold (15 attacks = permanent block for 5 minutes)
-		if (data.m_FuzzerAttackCount >= 15)
-		{
-			data.m_ConnectionBlocked = true;
-			data.m_BlockedUntil = now + std::chrono::minutes(5);
-
-			LOGF(SYNC, WARNING, "BLOCKED CONNECTION from {} - exceeded total attack threshold ({} attacks)",
-				player.GetName(), data.m_FuzzerAttackCount);
-
-			Notifications::Show("Protections",
-				std::format("Blocked connection from {} - exceeded attack threshold", player.GetName()),
-				NotificationType::Warning);
-
-			return true;
-		}
-
-		// EXPERT FIX: Only process rate limiter when this is actually an attack
-		// This prevents blocking legitimate players for normal sync traffic
-		if (isAttack && data.m_FuzzerAttackRateLimit.Process())
-		{
-			data.m_ConnectionBlocked = true;
-			data.m_BlockedUntil = now + std::chrono::minutes(5);
-
-			LOGF(SYNC, WARNING, "BLOCKED CONNECTION from {} - exceeded rate limit (20+ attacks/minute)",
-				player.GetName());
-
-			Notifications::Show("Protections",
-				std::format("Blocked connection from {} - spam attack detected", player.GetName()),
-				NotificationType::Warning);
-
-			return true;
-		}
-
-		return false;
-	}
-	*/
-
 	inline void DeleteSyncObjectLater(std::uint16_t object)
 	{
 		FiberPool::Push([object] {
@@ -449,98 +384,27 @@ namespace
 		{
 			auto& data = node->GetData<CPedTaskTreeData>();
 
-			// validate tree count first
-			int numTrees = data.GetNumTaskTrees();
-			if (numTrees < 0 || numTrees > 5) // RDR2 uses 5 sync trees (0-4)
+			for (int i = 0; i < data.GetNumTaskTrees(); i++)
 			{
-				LOGF(SYNC, WARNING, "Blocking invalid tree count ({}) from {}", numTrees, Protections::GetSyncingPlayer().GetName());
-				SyncBlocked("task fuzzer crash - invalid tree count");
-				return true;
-			}
-
-			for (int i = 0; i < numTrees; i++)
-			{
-				// validate tree structure before accessing tasks
-				if (!data.m_Trees[i].m_Tasks)
+				for (int j = 0; j < data.m_Trees[i].m_NumTasks; j++)
 				{
-					LOGF(SYNC, WARNING, "Blocking null task array (tree={}) from {}", i, Protections::GetSyncingPlayer().GetName());
-					SyncBlocked("task fuzzer crash - null task array");
-					return true;
-				}
-
-				// validate task count with reasonable bounds
-				int numTasks = data.m_Trees[i].m_NumTasks;
-				if (numTasks < 0 || numTasks > 32) // reasonable upper bound based on game analysis
-				{
-					LOGF(SYNC, WARNING, "Blocking invalid task count (tree={}, tasks={}) from {}", i, numTasks, Protections::GetSyncingPlayer().GetName());
-					SyncBlocked("task fuzzer crash - invalid task count");
-					return true;
-				}
-
-				// check for crash signatures in task array pointer
-				if (CrashSignatures::IsKnownCrashPointerForNetworking(data.m_Trees[i].m_Tasks))
-				{
-					LOGF(SYNC, WARNING, "Blocking crash signature in task array pointer (tree={}) from {}", i, Protections::GetSyncingPlayer().GetName());
-					SyncBlocked("task fuzzer crash - array pointer signature");
-					return true;
-				}
-
-				for (int j = 0; j < numTasks; j++)
-				{
-					// validate individual task element pointer
-					auto* taskElement = &data.m_Trees[i].m_Tasks[j];
-					if (CrashSignatures::IsKnownCrashPointerForNetworking(taskElement))
+					if (data.m_Trees[i].m_Tasks[j].m_TaskType == -1)
 					{
-						LOGF(SYNC, WARNING, "Blocking crash signature in task element (tree={}, task={}) from {}", i, j, Protections::GetSyncingPlayer().GetName());
-						SyncBlocked("task fuzzer crash - task element signature");
+						LOGF(SYNC, WARNING, "Blocking null task type (tree={}, task={}) from {}", i, j, Protections::GetSyncingPlayer().GetName());
+						SyncBlocked("task fuzzer crash");
+						// TODO fix node corruption bug
+						// Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER); // no false positives possible
 						return true;
 					}
 
-					// read task data safely with exception protection
-					int taskType, taskTreeType;
-					try
+					// TODO: better heuristics
+					if (data.m_Trees[i].m_Tasks[j].m_TaskTreeType == 31)
 					{
-						taskType = data.m_Trees[i].m_Tasks[j].m_TaskType;
-						taskTreeType = data.m_Trees[i].m_Tasks[j].m_TaskTreeType;
-					}
-					catch (...)
-					{
-						LOGF(SYNC, WARNING, "Exception reading task data (tree={}, task={}) from {}", i, j, Protections::GetSyncingPlayer().GetName());
-						SyncBlocked("task fuzzer crash - read exception");
+						LOGF(SYNC, WARNING, "Blocking invalid task tree type (tree={}, task={}) from {}", i, j, Protections::GetSyncingPlayer().GetName());
+						SyncBlocked("task fuzzer crash");
+						// Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER); // no false positives possible
 						return true;
 					}
-
-					/*
-					// Triple validation using only semantic fields
-					// This avoids the brittleness of array position matching
-					if (!CrashSignatures::IsValidTaskTriple(i, taskType, taskTreeType))
-					{
-						// Smart logging with rate limiting
-						std::string attackDetails = std::format("invalid task triple (tree={}, taskType={}, taskTreeType={})",
-							i, taskType, taskTreeType);
-						CrashSignatures::LogFuzzerAttackOnce(Protections::GetSyncingPlayer().GetName(), attackDetails);
-
-						// COMMENTED OUT: Connection blocking logic doesn't help - still get crashed
-
-						// Increment fuzzer attack counter and trigger connection-level blocking
-						// auto player = Protections::GetSyncingPlayer();
-						// if (player.IsValid())
-						// {
-						// 	auto& playerData = player.GetData();
-						// 	playerData.m_FuzzerAttackCount++;
-
-						// 	// EXPERT FIX: Trigger connection-level blocking with isAttack=true for rate limiting
-						// 	ShouldBlockPlayerConnection(player, true);
-
-						// 	LOGF(SYNC, WARNING, "Fuzzer attack #{} from {} - invalid task triple (tree={}, taskType={}, taskTreeType={})",
-						// 		playerData.m_FuzzerAttackCount, player.GetName(), i, taskType, taskTreeType);
-						// }
-
-						SyncBlocked("task fuzzer attack - triple validation");
-						// player.AddDetection(Detection::TRIED_CRASH_PLAYER); we dont want to flag them as modders as it contains failsafes
-						return true;
-					}
-					*/
 				}
 			}
 			break;
@@ -688,76 +552,27 @@ namespace
 		}
 		case "Node_14359d660"_J:
 		{
-			// PERMANENT FIX: Data sanitization instead of blocking
-			// The issue is that blocking still allows the game engine to process corrupted data
-			// We need to FIX the data in-place to prevent crashes
-
 			auto data = (std::uint64_t)&node->GetData<char>();
-			bool dataWasSanitized = false;
-
-			// Validate and sanitize array count first
-			int* arrayCountPtr = (int*)(data + 36);
-			int arrayCount = *arrayCountPtr;
-
-			if (arrayCount < 0 || arrayCount > 100) // reasonable upper bound
+			for (int i = 0; i < *(int*)(data + 36); i++)
 			{
-				// SANITIZE: Fix corrupted array count instead of blocking
-				*arrayCountPtr = 0; // Set to safe value
-				dataWasSanitized = true;
-				LOGF(SYNC, WARNING, "Sanitized invalid array count ({} -> 0) from {}", arrayCount, Protections::GetSyncingPlayer().GetName());
-				Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
-			}
-
-			// Process the sanitized array count
-			arrayCount = *arrayCountPtr;
-
-			for (int i = 0; i < arrayCount; i++)
-			{
-				int* lowerBoundPtr = (int*)(data + 36ULL * i + 64ULL);
-				int* upperBoundPtr = (int*)(data + 36ULL * i + 72ULL);
-				int lowerBound = *lowerBoundPtr;
-				int upperBound = *upperBoundPtr;
-
-				// SANITIZE: Fix invalid ranges instead of blocking
-				if (upperBound < lowerBound) // This is the ATTACK condition
+				if (*(int*)(data + 36ULL * i + 72ULL) < *(int*)(data + 36ULL * i + 64ULL))
 				{
-					// Fix the corrupted range by swapping values
-					*lowerBoundPtr = upperBound;
-					*upperBoundPtr = lowerBound;
-					dataWasSanitized = true;
-					LOGF(SYNC, WARNING, "Sanitized invalid range - swapped upper ({}) and lower ({}) from {}", upperBound, lowerBound, Protections::GetSyncingPlayer().GetName());
+					LOGF(SYNC, WARNING, "Blocking wanted data array out of bounds range ({} < {}) from {}", *(int*)(data + 36ULL * i + 72ULL), *(int*)(data + 36ULL * i + 64ULL), Protections::GetSyncingPlayer().GetName());
 					Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
-				}
-
-				// SANITIZE: Fix extreme values instead of blocking
-				if (lowerBound < -10000 || upperBound > 10000 || (upperBound - lowerBound) > 1000)
-				{
-					// Clamp to safe ranges
-					*lowerBoundPtr = std::max(-1000, std::min(1000, lowerBound));
-					*upperBoundPtr = std::max(*lowerBoundPtr, std::min(1000, upperBound));
-					dataWasSanitized = true;
-					LOGF(SYNC, WARNING, "Sanitized extreme range values (lower={}, upper={}) from {}", lowerBound, upperBound, Protections::GetSyncingPlayer().GetName());
-					Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
+					return true;
 				}
 			}
-
-			// Don't block - let the sanitized data through
 			break;
 		}
 		case "CTrainGameStateUncommonNode"_J:
 		{
-			// PERMANENT FIX: Sanitize out-of-bounds train config instead of blocking
 			auto data = (std::uint64_t)&node->GetData<char>();
-			unsigned char* configIndexPtr = (unsigned char*)(data + 12);
-			unsigned char configIndex = *configIndexPtr;
-
-			if (configIndex >= Pointers.TrainConfigs->m_TrainConfigs.size())
+			if (*(unsigned char*)(data + 12) >= Pointers.TrainConfigs->m_TrainConfigs.size())
 			{
-				// SANITIZE: Fix out-of-bounds index instead of blocking
-				*configIndexPtr = 0; // Set to first valid config
-				LOGF(SYNC, WARNING, "Sanitized out-of-bounds train config ({} -> 0, max={}) from {}",
-					configIndex, Pointers.TrainConfigs->m_TrainConfigs.size(), Protections::GetSyncingPlayer().GetName());
-				Protections::GetSyncingPlayer().AddDetection(Detection::TRIED_CRASH_PLAYER);
+				LOGF(SYNC, WARNING, "Blocking CTrainGameStateUncommonNode out of bounds train config ({} >= {}) from {}", *(unsigned char*)(data + 12), Pointers.TrainConfigs->m_TrainConfigs.size(), Protections::GetSyncingPlayer().GetName());
+				SyncBlocked("out of bounds train config index crash");
+				DeleteSyncObjectLater(object->m_ObjectId); // delete bad train just in case
+				return true;
 			}
 			break;
 		}
@@ -806,22 +621,9 @@ namespace YimMenu::Hooks::Protections
 {
 	bool ShouldBlockSync(rage::netSyncTree* tree, NetObjType type, rage::netObject* object)
 	{
-		// PERMANENT FIX: Comprehensive exception protection for all sync processing
 		try
 		{
 			Nodes::Init();
-
-			// COMMENTED OUT: Connection-level blocking for spam attackers doesn't help - still get crashed
-			/*
-			// "At the start of processing a data node... call ShouldBlockPlayerConnection()"
-			// "If it returns true, simply return true... so the sync packet is dropped without further processing"
-			auto syncingPlayer = ::YimMenu::Protections::GetSyncingPlayer();
-			if (syncingPlayer.IsValid() && ShouldBlockPlayerConnection(syncingPlayer))
-			{
-				// Connection blocked - drop packet silently without any processing to prevent resource drain
-				return true;
-			}
-			*/
 
 			if (g_Running && SyncNodeVisitor(reinterpret_cast<CProjectBaseSyncDataNode*>(tree->m_NextSyncNode), type, object))
 			{
