@@ -11,6 +11,7 @@
 #include <network/netObject.hpp>
 #include <network/rlGamerInfo.hpp>
 #include <rage/datBitBuffer.hpp>
+#include <unordered_set>
 
 
 namespace
@@ -41,6 +42,7 @@ namespace YimMenu::Features
 
 namespace YimMenu::Hooks
 {
+	static std::unordered_set<uint64_t> g_PtfxWarned;
 	static void LogScriptCommandEvent(Player sender, rage::datBitBuffer& buffer)
 	{
 		struct ScriptCommandEventData
@@ -126,15 +128,6 @@ namespace YimMenu::Hooks
 			}
 		}
 
-		if (type == NetEventType::NETWORK_PTFX_EVENT && sourcePlayer)
-		{
-			if (Features::_BlockPtfx.GetState() || (Player(sourcePlayer).IsValid() && Player(sourcePlayer).GetData().m_BlockParticles))
-			{
-				LOG(WARNING) << "Blocked particle effects from " << sourcePlayer->GetName();
-				Pointers.SendEventAck(eventMgr, nullptr, sourcePlayer, targetPlayer, index, handledBits);
-				return;
-			}
-		}
 
 		if (type == NetEventType::NETWORK_PTFX_EVENT && sourcePlayer)
 		{
