@@ -23,6 +23,7 @@
 #include <network/rlGamerHandle.hpp>
 #include <network/rlScPeerConnection.hpp>
 #include <rage/datBitBuffer.hpp>
+#include <excpt.h>
 
 
 namespace YimMenu::Features
@@ -33,6 +34,19 @@ namespace YimMenu::Features
 
 namespace YimMenu::Hooks
 {
+	// minimal SEH wrapper with no C++ object construction inside the guarded region
+	using ReceiveNetMsgFn = bool (*)(void*, rage::netConnectionManager*, rage::netConnection::InFrame*);
+	static bool __declspec(noinline) CallOrig_SEH(ReceiveNetMsgFn fn, void* a1, rage::netConnectionManager* ncm, rage::netConnection::InFrame* frame)
+	{
+		__try
+		{
+			return fn(a1, ncm, frame);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			return false; // drop the malformed frame safely
+		}
+	}
 	static bool GetMessageType(NetMessageType& type, rage::datBitBuffer& buffer)
 	{
 		if (buffer.Read<int>(14) != '2F')
@@ -85,14 +99,15 @@ namespace YimMenu::Hooks
 
 	bool Protections::ReceiveNetMessage(void* a1, rage::netConnectionManager* ncm, rage::netConnection::InFrame* frame)
 	{
+		auto orig = BaseHook::Get<Protections::ReceiveNetMessage, DetourHook<decltype(&Protections::ReceiveNetMessage)>>()->Original();
 		if (frame->GetEventType() != rage::netConnection::InFrame::EventType::FrameReceived)
 		{
-			return BaseHook::Get<Protections::ReceiveNetMessage, DetourHook<decltype(&Protections::ReceiveNetMessage)>>()->Original()(a1, ncm, frame);
+			return CallOrig_SEH(orig, a1, ncm, frame);
 		}
 
 		if (frame->m_Data == nullptr || frame->m_Length == 0)
 		{
-			return BaseHook::Get<Protections::ReceiveNetMessage, DetourHook<decltype(&Protections::ReceiveNetMessage)>>()->Original()(a1, ncm, frame);
+			return CallOrig_SEH(orig, a1, ncm, frame);
 		}
 
 		rage::datBitBuffer buffer(frame->m_Data, frame->m_Length);
@@ -159,12 +174,12 @@ namespace YimMenu::Hooks
 					p.AddDetection(Detection::SPOOFING_VC);
 			}
 
-			return BaseHook::Get<Protections::ReceiveNetMessage, DetourHook<decltype(&Protections::ReceiveNetMessage)>>()->Original()(a1, ncm, frame);
+			return CallOrig_SEH(orig, a1, ncm, frame);
 		}
 
 		if (!GetMessageType(msg_type, buffer))
 		{
-			return BaseHook::Get<Protections::ReceiveNetMessage, DetourHook<decltype(&Protections::ReceiveNetMessage)>>()->Original()(a1, ncm, frame);
+			return CallOrig_SEH(orig, a1, ncm, frame);
 		}
 
 		if (Features::_LogPackets.GetState())
@@ -268,6 +283,6 @@ namespace YimMenu::Hooks
 		}
 		}
 
-		return BaseHook::Get<Protections::ReceiveNetMessage, DetourHook<decltype(&Protections::ReceiveNetMessage)>>()->Original()(a1, ncm, frame);
+		return CallOrig_SEH(orig, a1, ncm, frame);
 	}
 }

@@ -28,8 +28,7 @@ namespace YimMenu::Hooks
 				if (secs < 5)
 				{
 					g_error_counts[key]++;
-					// still forward to original to avoid retry loops
-					BaseHook::Get<Protections::SetTreeErrored, DetourHook<decltype(&Protections::SetTreeErrored)>>()->Original()(tree, errored);
+					// suppress error propagation to avoid engine fatal path
 					return;
 				}
 			}
@@ -45,6 +44,9 @@ namespace YimMenu::Hooks
 			}
 			g_last_log_time[key] = now;
 			g_error_counts[key] = 0;
+
+			// swallow the error; do not mark the tree as errored
+			return;
 		}
 
 		// always forward to original so the engine actually marks/clears the error flag
